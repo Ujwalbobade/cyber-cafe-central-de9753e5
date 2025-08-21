@@ -128,7 +128,7 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
                 {station.name}
               </h3>
               <p className="text-xs text-muted-foreground font-gaming">
-                {station.type} • ₹{station.hourlyRate}/HR
+                {station.type}
               </p>
             </div>
           </div>

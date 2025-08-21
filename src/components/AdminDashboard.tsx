@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Monitor, 
-  Gamepad2, 
-  Users, 
-  DollarSign, 
-  BarChart3, 
+import {
+  Monitor,
+  Gamepad2,
+  Users,
+  DollarSign,
+  BarChart3,
   LogOut,
   Settings,
   Zap,
@@ -22,6 +22,16 @@ import { useToast } from '@/hooks/use-toast';
 import StationCard from './StationCard';
 import StatsCard from './StatsCard';
 import AddStationModal from './AddStationModal';
+import {
+  getStations,
+  createStation,
+  deleteStation,
+  lockStation,
+  unlockStation,
+  startSession,
+  endSession,
+  addTime,
+} from "../services/apis/api";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -45,7 +55,28 @@ interface Station {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const [stations, setStations] = useState<Station[]>([
+  const [stations, setStations] = useState<Station[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const fetchStations = async () => {
+      try {
+        const data = await getStations();
+        setStations(data); // API returns array of stations
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load stations',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStations();
+  }, []);
+
+  /*const [stations, setStations] = useState<Station[]>([
     {
       id: '1',
       name: 'GAMING-RIG-01',
@@ -56,42 +87,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       specifications: 'RTX 4080, i7-13700K, 32GB DDR5',
       isLocked: false,
     },
-    {
-      id: '2',
-      name: 'GAMING-RIG-02',
-      type: 'PC',
-      status: 'OCCUPIED',
-      hourlyRate: 150,
-      ipAddress: '192.168.1.102',
-      specifications: 'RTX 4070, i5-13600K, 16GB DDR5',
-      isLocked: false,
-      currentSession: {
-        id: 'session1',
-        customerName: 'Alex Morgan',
-        startTime: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-        timeRemaining: 90,
-      },
-    },
-    {
-      id: '3',
-      name: 'CONSOLE-PS5-01',
-      type: 'PS5',
-      status: 'AVAILABLE',
-      hourlyRate: 120,
-      specifications: 'PlayStation 5, 4K Gaming',
-      isLocked: false,
-    },
-    {
-      id: '4',
-      name: 'GAMING-RIG-03',
-      type: 'PC',
-      status: 'MAINTENANCE',
-      hourlyRate: 150,
-      specifications: 'RTX 4060, i5-12400F, 16GB DDR4',
-      isLocked: true,
-    },
-  ]);
-  
+
+  ]);*/
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAddStation, setShowAddStation] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('connected');
@@ -104,7 +102,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   useEffect(() => {
     // Apply theme to document
     document.documentElement.setAttribute('data-theme', currentTheme);
-    
+
     // Simulate WebSocket connection
     const interval = setInterval(() => {
       setStations(prev => prev.map(station => {
@@ -122,6 +120,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }));
     }, 60000); // Update every minute
 
+
     return () => clearInterval(interval);
   }, [currentTheme]);
 
@@ -135,79 +134,222 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       .filter(s => s.currentSession)
       .reduce((sum, station) => sum + (station.hourlyRate * 0.5), 0)
   };
-
-  const handleAddStation = (stationData: Omit<Station, 'id' | 'isLocked' | 'currentSession'>) => {
-    const newStation: Station = {
-      ...stationData,
-      id: `station-${Date.now()}`,
-      isLocked: false,
-      status: 'AVAILABLE',
-    };
-    setStations(prev => [...prev, newStation]);
-    setShowAddStation(false);
-    toast({
-      title: "Station Added",
-      description: `${newStation.name} has been successfully added to the network.`,
-    });
-  };
-
-  const handleDeleteStation = (stationId: string) => {
-    setStations(prev => prev.filter(s => s.id !== stationId));
-    toast({
-      title: "Station Removed",
-      description: "Station has been permanently removed from the system.",
-    });
-  };
-
-  const handleStationAction = (stationId: string, action: string, data?: any) => {
-    setStations(prev => prev.map(station => {
-      if (station.id === stationId) {
-        switch (action) {
-          case 'lock':
-            return { ...station, isLocked: true };
-          case 'unlock':
-            return { ...station, isLocked: false };
-          case 'start-session':
-            return {
-              ...station,
-              status: 'OCCUPIED' as const,
-              currentSession: {
-                id: `session-${Date.now()}`,
-                customerName: data.customerName,
-                startTime: new Date().toISOString(),
-                timeRemaining: data.timeMinutes,
-              }
-            };
-          case 'end-session':
-            return {
-              ...station,
-              status: 'AVAILABLE' as const,
-              currentSession: undefined,
-            };
-          case 'add-time':
-            return station.currentSession ? {
-              ...station,
-              currentSession: {
-                ...station.currentSession,
-                timeRemaining: station.currentSession.timeRemaining + data.minutes,
-              }
-            } : station;
-          default:
-            return station;
-        }
-      }
-      return station;
-    }));
-
-    if (action === 'start-session') {
-      toast({
-        title: "Session Started",
-        description: `Gaming session initiated for ${data.customerName}`,
+  const handleAddStation = async (
+    stationData: Omit<Station, 'id' | 'isLocked' | 'currentSession'>
+  ) => {
+    try {
+      // Call backend API
+      const createdStation = await createStation({
+        ...stationData,
+        isLocked: false,
+        status: 'AVAILABLE'
       });
-    } else if (action === 'end-session') {
+
+      // Update state with the station returned by API
+      setStations(prev => [...prev, createdStation]);
+      setShowAddStation(false);
       toast({
-        title: "Session Ended",
-        description: "Gaming session has been terminated successfully.",
+        title: "Station Added",
+        description: `${createStation.name} has been successfully added to the network.`,
+      });
+
+      console.log('Station created:', createdStation);
+    } catch (error) {
+      console.error('Error creating station:', error);
+      alert('Failed to create station');
+    }
+  };
+
+  const handleDeleteStation = async (stationId: string) => {
+    try {
+      // Call backend API
+      await deleteStation(stationId);
+
+      // Update UI state after successful deletion
+      setStations(prev => prev.filter(s => s.id !== stationId));
+
+      toast({
+        title: "Station Removed",
+        description: "Station has been permanently removed from the system.",
+      });
+    } catch (error) {
+      console.error("Error deleting station:", error);
+
+      toast({
+        title: "Error",
+        description: "Failed to remove the station. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  /*
+    const handleStationAction = (stationId: string, action: string, data?: any) => {
+      setStations(prev => prev.map(station => {
+        if (station.id === stationId) {
+          switch (action) {
+            case 'lock':
+              return { ...station, isLocked: true };
+            case 'unlock':
+              return { ...station, isLocked: false };
+            case 'start-session':
+              return {
+                ...station,
+                status: 'OCCUPIED' as const,
+                currentSession: {
+                  id: `session-${Date.now()}`,
+                  customerName: data.customerName,
+                  startTime: new Date().toISOString(),
+                  timeRemaining: data.timeMinutes,
+                }
+              };
+            case 'end-session':
+              return {
+                ...station,
+                status: 'AVAILABLE' as const,
+                currentSession: undefined,
+              };
+            case 'add-time':
+              return station.currentSession ? {
+                ...station,
+                currentSession: {
+                  ...station.currentSession,
+                  timeRemaining: station.currentSession.timeRemaining + data.minutes,
+                }
+              } : station;
+            default:
+              return station;
+          }
+        }
+        return station;
+      }));
+  
+      if (action === 'start-session') {
+        toast({
+          title: "Session Started",
+          description: `Gaming session initiated for ${data.customerName}`,
+        });
+      } else if (action === 'end-session') {
+        toast({
+          title: "Session Ended",
+          description: "Gaming session has been terminated successfully.",
+        });
+      }
+    };*/
+
+  const handleStationAction = async (
+    stationId: string,
+    action: string,
+    data?: any
+  ) => {
+    try {
+      switch (action) {
+        case "lock":
+          await lockStation(stationId);
+          setStations(prev =>
+            prev.map(station =>
+              station.id === stationId ? { ...station, isLocked: true } : station
+            )
+          );
+          toast({ title: "Station Locked", description: "The station has been locked." });
+          break;
+
+        case "unlock":
+          await unlockStation(stationId);
+          setStations(prev =>
+            prev.map(station =>
+              station.id === stationId ? { ...station, isLocked: false } : station
+            )
+          );
+          toast({ title: "Station Unlocked", description: "The station is now available." });
+          break;
+        /*case "start-session":
+          const session = await startSession(stationId, data);
+          const endTime = new Date(session.startTime).getTime() + session.timeRemaining * 60000;
+
+          setStations(prev =>
+            prev.map(station =>
+              station.id === stationId
+                ? {
+                  ...station,
+                  status: "OCCUPIED",
+                  currentSession: {
+                    id: session.id,
+                    customerName: session.customerName,
+                    startTime: session.startTime,
+                    endTime,
+                    timeRemaining: session.timeRemaining,
+                  },
+                }
+                : station
+            )
+          );
+          break;*/
+        case "start-session":
+          const session = await startSession(stationId, data); // backend creates session
+          setStations(prev =>
+            prev.map(station =>
+              station.id === stationId
+                ? {
+                  ...station,
+                  status: "OCCUPIED",
+                  currentSession: {
+                    id: session.id,
+                    customerName: session.customerName,
+                    startTime: session.startTime,
+                    timeRemaining: session.timeRemaining,
+                  },
+                }
+                : station
+            )
+          );
+          toast({ title: "Session Started", description: `Session started for ${data.customerName}.` });
+          break;
+
+        case "end-session":
+          if (!data?.sessionId) throw new Error("Session ID required to end session");
+          await endSession(data.sessionId);
+
+          setStations(prev =>
+            prev.map(station =>
+              station.currentSession?.id === data.sessionId
+                ? { ...station, status: "AVAILABLE", currentSession: undefined }
+                : station
+            )
+          );
+
+          toast({
+            title: "Session Ended",
+            description: `Session ${data.sessionId} has been ended.`,
+          });
+          break;
+        case "add-time":
+          if (!data?.sessionId || !data?.minutes) throw new Error("Session ID and minutes required");
+          const updatedSession = await addTime(data.sessionId, data.minutes);
+          setStations(prev =>
+            prev.map(station =>
+              station.id === stationId && station.currentSession
+                ? {
+                  ...station,
+                  currentSession: {
+                    ...station.currentSession,
+                    timeRemaining: updatedSession.timeRemaining,
+                  },
+                }
+                : station
+            )
+          );
+          toast({ title: "Time Added", description: `${data.minutes} minutes added.` });
+          break;
+
+        default:
+          console.warn(`Unknown action: ${action}`);
+      }
+    } catch (error) {
+      console.error(`Error handling action ${action}:`, error);
+      toast({
+        title: "Error",
+        description: `Failed to perform action: ${action}`,
+        variant: "destructive",
       });
     }
   };
@@ -229,22 +371,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </h1>
                 </div>
               </div>
-              
-              <Badge 
-                className={`font-gaming text-xs ${
-                  connectionStatus === 'connected' 
-                    ? 'bg-success/20 text-success border-success/30 shadow-glow-accent' 
-                    : connectionStatus === 'disconnected'
+
+              <Badge
+                className={`font-gaming text-xs ${connectionStatus === 'connected'
+                  ? 'bg-success/20 text-success border-success/30 shadow-glow-accent'
+                  : connectionStatus === 'disconnected'
                     ? 'bg-error/20 text-error border-error/30'
                     : 'bg-warning/20 text-warning border-warning/30'
-                }`}
+                  }`}
               >
                 <Activity className="w-3 h-3 mr-1" />
-                {connectionStatus === 'connected' ? 'NEURAL LINK ACTIVE' : 
-                 connectionStatus === 'disconnected' ? 'LINK SEVERED' : 'SIGNAL ERROR'}
+                {connectionStatus === 'connected' ? 'NEURAL LINK ACTIVE' :
+                  connectionStatus === 'disconnected' ? 'LINK SEVERED' : 'SIGNAL ERROR'}
               </Badge>
             </div>
-            
+
             <div className="flex items-center space-x-1 md:space-x-3">
               <Button
                 variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
@@ -300,7 +441,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <span>SYSTEM STATUS: OPTIMAL</span>
               </div>
             </div>
-            
+
             {/* Statistics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatsCard
@@ -349,7 +490,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <p className="font-gaming font-semibold">ADD NEW RIG</p>
                   </div>
                 </Button>
-                
+
                 <Button
                   className="h-20 bg-gradient-card border-dashed border-2 border-accent/30 hover:border-accent hover:shadow-glow-accent transition-all duration-300"
                   variant="ghost"
@@ -359,7 +500,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <p className="font-gaming font-semibold">ANALYTICS HUB</p>
                   </div>
                 </Button>
-                
+
                 <Button
                   className="h-20 bg-gradient-card border-dashed border-2 border-secondary/30 hover:border-secondary hover:shadow-glow-secondary transition-all duration-300"
                   variant="ghost"
@@ -381,7 +522,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground">
                 STATION NETWORK
               </h2>
-              <Button 
+              <Button
                 onClick={() => setShowAddStation(true)}
                 className="btn-gaming font-gaming w-full md:w-auto"
               >
@@ -429,18 +570,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   return true;
                 })
                 .map((station, index) => (
-                <div
-                  key={station.id}
-                  className="animate-slide-in-gaming"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <StationCard 
-                    station={station}
-                    onAction={handleStationAction}
-                    onDelete={() => handleDeleteStation(station.id)}
-                  />
-                </div>
-              ))}
+                  <div
+                    key={station.id}
+                    className="animate-slide-in-gaming"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <StationCard
+                      station={station}
+                      onAction={handleStationAction}
+                      onDelete={() => handleDeleteStation(station.id)}
+                    />
+                  </div>
+                ))}
             </div>
           </div>
         )}
@@ -448,12 +589,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       {/* Modals */}
       {showAddStation && (
-        <AddStationModal 
+        <AddStationModal
           onClose={() => setShowAddStation(false)}
           onAdd={handleAddStation}
         />
       )}
-      
+
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -461,7 +602,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <h2 className="text-xl font-gaming font-bold text-foreground mb-4">
               CAFE SETTINGS
             </h2>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-gaming text-muted-foreground mb-2">
@@ -485,7 +626,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </Button>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-gaming text-muted-foreground mb-2">
                   COLOR THEME
@@ -508,7 +649,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-2 mt-6">
               <Button
                 onClick={() => setShowSettings(false)}
