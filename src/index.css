@@ -71,6 +71,26 @@
     --transition-glow: all 0.2s ease-out;
   }
 
+  /* Theme 1: Cyber Blue (Default) */
+  [data-theme="cyber-blue"] {
+    --primary: 195 100% 50%;
+    --secondary: 280 100% 60%;
+    --accent: 120 100% 50%;
+    --primary-glow: 195 100% 65%;
+    --secondary-glow: 280 100% 75%;
+    --accent-glow: 120 100% 65%;
+  }
+
+  /* Theme 2: Neon Purple */
+  [data-theme="neon-purple"] {
+    --primary: 280 100% 60%;
+    --secondary: 195 100% 50%;
+    --accent: 45 100% 60%;
+    --primary-glow: 280 100% 75%;
+    --secondary-glow: 195 100% 65%;
+    --accent-glow: 45 100% 75%;
+  }
+
   body {
     font-family: 'Rajdhani', sans-serif;
     background: var(--gradient-hero);

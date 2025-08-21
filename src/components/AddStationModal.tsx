@@ -25,7 +25,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
   const [formData, setFormData] = useState({
     name: '',
     type: 'PC' as 'PC' | 'PS5' | 'PS4',
-    hourlyRate: 5.0,
+    hourlyRate: 120,
     ipAddress: '',
     specifications: ''
   });
@@ -174,12 +174,12 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
             {/* Hourly Rate */}
             <div className="space-y-2">
               <Label htmlFor="rate" className="font-gaming text-sm tracking-wide">
-                CREDIT RATE ($/HR)
+                CREDIT RATE (₹/HR)
               </Label>
               <Input
                 id="rate"
                 type="number"
-                step="0.5"
+                step="10"
                 min="0"
                 value={formData.hourlyRate}
                 onChange={(e) => setFormData({ ...formData, hourlyRate: parseFloat(e.target.value) || 0 })}

@@ -11,7 +11,9 @@ import {
   Shield,
   Cpu,
   Activity,
-  Plus
+  Plus,
+  Palette,
+  Edit3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -49,7 +51,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       name: 'GAMING-RIG-01',
       type: 'PC',
       status: 'AVAILABLE',
-      hourlyRate: 5.0,
+      hourlyRate: 150,
       ipAddress: '192.168.1.101',
       specifications: 'RTX 4080, i7-13700K, 32GB DDR5',
       isLocked: false,
@@ -59,7 +61,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       name: 'GAMING-RIG-02',
       type: 'PC',
       status: 'OCCUPIED',
-      hourlyRate: 5.0,
+      hourlyRate: 150,
       ipAddress: '192.168.1.102',
       specifications: 'RTX 4070, i5-13600K, 16GB DDR5',
       isLocked: false,
@@ -75,7 +77,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       name: 'CONSOLE-PS5-01',
       type: 'PS5',
       status: 'AVAILABLE',
-      hourlyRate: 4.0,
+      hourlyRate: 120,
       specifications: 'PlayStation 5, 4K Gaming',
       isLocked: false,
     },
@@ -84,7 +86,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       name: 'GAMING-RIG-03',
       type: 'PC',
       status: 'MAINTENANCE',
-      hourlyRate: 5.0,
+      hourlyRate: 150,
       specifications: 'RTX 4060, i5-12400F, 16GB DDR4',
       isLocked: true,
     },
@@ -94,9 +96,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [showAddStation, setShowAddStation] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('connected');
   const [stationFilter, setStationFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>('cyber-blue');
+  const [cafeName, setCafeName] = useState('GAMING CAFE ADMIN');
+  const [showSettings, setShowSettings] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
+    // Apply theme to document
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    
     // Simulate WebSocket connection
     const interval = setInterval(() => {
       setStations(prev => prev.map(station => {
@@ -115,7 +123,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentTheme]);
 
   // Calculate dashboard statistics
   const stats = {
@@ -216,8 +224,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <Shield className="w-6 h-6 text-primary-foreground" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-gaming font-bold bg-gradient-gaming bg-clip-text text-transparent">
-                    GAMING CAFE ADMIN
+                  <h1 className="text-xl md:text-2xl font-gaming font-bold bg-gradient-gaming bg-clip-text text-transparent">
+                    {cafeName}
                   </h1>
                 </div>
               </div>
@@ -237,42 +245,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </Badge>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 md:space-x-3">
               <Button
                 variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
                 onClick={() => setActiveTab('dashboard')}
-                className={activeTab === 'dashboard' ? 'btn-gaming' : 'hover:bg-primary/10'}
+                className={`${activeTab === 'dashboard' ? 'btn-gaming' : 'hover:bg-primary/10'} px-2 md:px-4`}
+                size="sm"
               >
-                <BarChart3 className="w-5 h-5 mr-2" />
-                Control Center
+                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                <span className="hidden md:inline">Control Center</span>
               </Button>
               <Button
                 variant={activeTab === 'stations' ? 'default' : 'ghost'}
                 onClick={() => setActiveTab('stations')}
-                className={activeTab === 'stations' ? 'btn-gaming' : 'hover:bg-primary/10'}
+                className={`${activeTab === 'stations' ? 'btn-gaming' : 'hover:bg-primary/10'} px-2 md:px-4`}
+                size="sm"
               >
-                <Monitor className="w-5 h-5 mr-2" />
-                Station Network
+                <Monitor className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                <span className="hidden md:inline">Stations</span>
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowSettings(true)}
+                className="hover:bg-primary/10 px-2 md:px-4"
+                size="sm"
+              >
+                <Palette className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                <span className="hidden md:inline">Theme</span>
               </Button>
               <Button
                 variant="ghost"
                 onClick={onLogout}
-                className="hover:bg-error/10 hover:text-error"
+                className="hover:bg-error/10 hover:text-error px-2 md:px-4"
+                size="sm"
               >
-                <LogOut className="w-5 h-5 mr-2" />
-                Disconnect
+                <LogOut className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                <span className="hidden md:inline">Logout</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-8 animate-slide-in-gaming">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-gaming font-bold text-foreground">
+              <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground">
                 CONTROL CENTER OVERVIEW
               </h2>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground font-gaming">
@@ -306,7 +326,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               />
               <StatsCard
                 title="CREDITS EARNED"
-                value={`$${stats.totalRevenue.toFixed(2)}`}
+                value={`₹${stats.totalRevenue.toFixed(0)}`}
                 icon={<DollarSign className="w-8 h-8" />}
                 gradient="bg-gradient-gaming"
                 change="+15% vs yesterday"
@@ -357,13 +377,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         {/* Stations Tab */}
         {activeTab === 'stations' && (
           <div className="space-y-6 animate-slide-in-gaming">
-            <div className="flex justify-between items-center">
-              <h2 className="text-3xl font-gaming font-bold text-foreground">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+              <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground">
                 STATION NETWORK
               </h2>
               <Button 
                 onClick={() => setShowAddStation(true)}
-                className="btn-gaming font-gaming"
+                className="btn-gaming font-gaming w-full md:w-auto"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 DEPLOY NEW RIG
@@ -371,22 +391,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-3">
               <span className="text-sm font-gaming text-muted-foreground">FILTER:</span>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={stationFilter === 'all' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStationFilter('all')}
-                  className={`font-gaming ${stationFilter === 'all' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
+                  className={`font-gaming text-xs ${stationFilter === 'all' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
                 >
-                  ALL RIGS ({stations.length})
+                  ALL ({stations.length})
                 </Button>
                 <Button
                   variant={stationFilter === 'active' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStationFilter('active')}
-                  className={`font-gaming ${stationFilter === 'active' ? 'btn-gaming' : 'hover:bg-accent/10'}`}
+                  className={`font-gaming text-xs ${stationFilter === 'active' ? 'btn-gaming' : 'hover:bg-accent/10'}`}
                 >
                   ACTIVE ({stations.filter(s => s.status === 'OCCUPIED').length})
                 </Button>
@@ -394,14 +414,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   variant={stationFilter === 'inactive' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStationFilter('inactive')}
-                  className={`font-gaming ${stationFilter === 'inactive' ? 'btn-gaming' : 'hover:bg-secondary/10'}`}
+                  className={`font-gaming text-xs ${stationFilter === 'inactive' ? 'btn-gaming' : 'hover:bg-secondary/10'}`}
                 >
                   INACTIVE ({stations.filter(s => s.status !== 'OCCUPIED').length})
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {stations
                 .filter(station => {
                   if (stationFilter === 'active') return station.status === 'OCCUPIED';
@@ -432,6 +452,73 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           onClose={() => setShowAddStation(false)}
           onAdd={handleAddStation}
         />
+      )}
+      
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="card-gaming max-w-md w-full p-6">
+            <h2 className="text-xl font-gaming font-bold text-foreground mb-4">
+              CAFE SETTINGS
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-gaming text-muted-foreground mb-2">
+                  CAFE NAME
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={cafeName}
+                    onChange={(e) => setCafeName(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-input/50 border border-primary/30 rounded-lg text-foreground font-gaming text-sm"
+                    placeholder="Enter cafe name"
+                  />
+                  <Button
+                    onClick={() => setCafeName(cafeName)}
+                    variant="outline"
+                    size="sm"
+                    className="font-gaming"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-gaming text-muted-foreground mb-2">
+                  COLOR THEME
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={currentTheme === 'cyber-blue' ? 'default' : 'outline'}
+                    onClick={() => setCurrentTheme('cyber-blue')}
+                    className={`font-gaming ${currentTheme === 'cyber-blue' ? 'btn-gaming' : ''}`}
+                  >
+                    Cyber Blue
+                  </Button>
+                  <Button
+                    variant={currentTheme === 'neon-purple' ? 'default' : 'outline'}
+                    onClick={() => setCurrentTheme('neon-purple')}
+                    className={`font-gaming ${currentTheme === 'neon-purple' ? 'btn-gaming' : ''}`}
+                  >
+                    Neon Purple
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <Button
+                onClick={() => setShowSettings(false)}
+                className="flex-1 btn-gaming font-gaming"
+              >
+                SAVE SETTINGS
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
