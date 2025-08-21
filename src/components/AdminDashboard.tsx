@@ -93,6 +93,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAddStation, setShowAddStation] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('connected');
+  const [stationFilter, setStationFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -369,8 +370,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stations.map((station, index) => (
+            {/* Filter Buttons */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-gaming text-muted-foreground">FILTER:</span>
+              <div className="flex space-x-2">
+                <Button
+                  variant={stationFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStationFilter('all')}
+                  className={`font-gaming ${stationFilter === 'all' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
+                >
+                  ALL RIGS ({stations.length})
+                </Button>
+                <Button
+                  variant={stationFilter === 'active' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStationFilter('active')}
+                  className={`font-gaming ${stationFilter === 'active' ? 'btn-gaming' : 'hover:bg-accent/10'}`}
+                >
+                  ACTIVE ({stations.filter(s => s.status === 'OCCUPIED').length})
+                </Button>
+                <Button
+                  variant={stationFilter === 'inactive' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStationFilter('inactive')}
+                  className={`font-gaming ${stationFilter === 'inactive' ? 'btn-gaming' : 'hover:bg-secondary/10'}`}
+                >
+                  INACTIVE ({stations.filter(s => s.status !== 'OCCUPIED').length})
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {stations
+                .filter(station => {
+                  if (stationFilter === 'active') return station.status === 'OCCUPIED';
+                  if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
+                  return true;
+                })
+                .map((station, index) => (
                 <div
                   key={station.id}
                   className="animate-slide-in-gaming"

@@ -112,156 +112,138 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
   };
 
   return (
-    <Card className={`card-gaming ${statusConfig.border} ${statusConfig.glow} group relative overflow-hidden`}>
+    <Card className={`card-gaming ${statusConfig.border} ${statusConfig.glow} group relative overflow-hidden h-fit`}>
       {/* Animated background effect */}
       <div className="absolute inset-0 bg-gradient-card opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      <div className="p-6 relative z-10">
+      <div className="p-4 relative z-10">
         {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center space-x-2">
+            <div className="p-1.5 bg-primary/10 rounded-lg">
               {getTypeIcon(station.type)}
             </div>
             <div>
-              <h3 className="font-gaming font-semibold text-lg text-foreground">
+              <h3 className="font-gaming font-semibold text-sm text-foreground">
                 {station.name}
               </h3>
-              <p className="text-sm text-muted-foreground font-gaming">
-                {station.type} TERMINAL
+              <p className="text-xs text-muted-foreground font-gaming">
+                {station.type} • ${station.hourlyRate}/HR
               </p>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Badge className={`${statusConfig.badge} font-gaming text-xs px-3 py-1`}>
+          <div className="flex items-center space-x-1">
+            <Badge className={`${statusConfig.badge} font-gaming text-xs px-2 py-0.5`}>
               {statusConfig.text}
             </Badge>
             {station.isLocked && (
-              <div className="p-1 bg-error/20 rounded border border-error/30">
-                <Lock className="w-4 h-4 text-error" />
+              <div className="p-0.5 bg-error/20 rounded border border-error/30">
+                <Lock className="w-3 h-3 text-error" />
               </div>
             )}
           </div>
         </div>
 
-        {/* Station Info */}
-        <div className="space-y-3 mb-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground font-gaming">RATE:</span>
-            <span className="text-primary font-gaming font-semibold">
-              ${station.hourlyRate}/HR
-            </span>
-          </div>
-          
+        {/* Station Info - Compact */}
+        <div className="space-y-2 mb-3">
           {station.ipAddress && (
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground font-gaming">IP:</span>
-              <span className="text-foreground font-mono text-xs">
+              <span className="text-foreground font-mono">
                 {station.ipAddress}
               </span>
             </div>
           )}
           
-          <div className="text-sm">
-            <span className="text-muted-foreground font-gaming block mb-1">SPECS:</span>
-            <span className="text-foreground text-xs">
-              {station.specifications}
+          <div className="text-xs">
+            <span className="text-muted-foreground font-gaming">SPECS: </span>
+            <span className="text-foreground">
+              {station.specifications.length > 35 
+                ? `${station.specifications.substring(0, 35)}...` 
+                : station.specifications
+              }
             </span>
           </div>
         </div>
 
-        {/* Active Session Info */}
+        {/* Active Session Info - Compact */}
         {station.currentSession && (
-          <div className="mb-4 p-4 bg-error/10 border border-error/30 rounded-lg">
-            <div className="flex items-center space-x-2 mb-2">
-              <User className="w-4 h-4 text-error" />
-              <span className="font-gaming font-semibold text-error text-sm">
-                ACTIVE SESSION
-              </span>
-            </div>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Player:</span>
-                <span className="text-foreground font-semibold">
+          <div className="mb-3 p-3 bg-error/10 border border-error/30 rounded-lg">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center space-x-1">
+                <User className="w-3 h-3 text-error" />
+                <span className="font-gaming font-semibold text-error text-xs">
                   {station.currentSession.customerName}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Time Left:</span>
-                <span className="text-accent font-gaming font-bold">
-                  {formatTime(station.currentSession.timeRemaining)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Started:</span>
-                <span className="text-foreground">
-                  {new Date(station.currentSession.startTime).toLocaleTimeString()}
-                </span>
-              </div>
+              <span className="text-accent font-gaming font-bold text-xs">
+                {formatTime(station.currentSession.timeRemaining)}
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Started: {new Date(station.currentSession.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          {/* Primary Actions */}
-          <div className="flex gap-2">
-            {station.status === 'AVAILABLE' && !showSessionForm && (
+        {/* Action Buttons - Compact Layout */}
+        <div className="space-y-2">
+          {/* Primary Action */}
+          {station.status === 'AVAILABLE' && !showSessionForm && (
+            <Button 
+              onClick={() => setShowSessionForm(true)}
+              className="w-full btn-gaming font-gaming text-sm h-8"
+              disabled={station.isLocked}
+            >
+              <Play className="w-3 h-3 mr-1" />
+              INITIATE
+            </Button>
+          )}
+          
+          {station.status === 'OCCUPIED' && (
+            <div className="flex gap-1">
               <Button 
-                onClick={() => setShowSessionForm(true)}
-                className="flex-1 btn-gaming font-gaming"
-                disabled={station.isLocked}
+                onClick={() => onAction(station.id, 'end-session')}
+                variant="destructive"
+                className="flex-1 font-gaming text-xs h-8"
               >
-                <Play className="w-4 h-4 mr-2" />
-                INITIATE
+                <Square className="w-3 h-3 mr-1" />
+                END
               </Button>
-            )}
-            
-            {station.status === 'OCCUPIED' && (
-              <>
-                <Button 
-                  onClick={() => onAction(station.id, 'end-session')}
-                  variant="destructive"
-                  className="flex-1 font-gaming"
-                >
-                  <Square className="w-4 h-4 mr-2" />
-                  TERMINATE
-                </Button>
-                <Button 
-                  onClick={() => onAction(station.id, 'add-time', { minutes: 30 })}
-                  variant="secondary"
-                  className="font-gaming"
-                >
-                  +30M
-                </Button>
-              </>
-            )}
-
-            {station.status === 'MAINTENANCE' && (
               <Button 
+                onClick={() => onAction(station.id, 'add-time', { minutes: 30 })}
                 variant="secondary"
-                className="flex-1 font-gaming"
-                disabled
+                className="font-gaming text-xs h-8 px-2"
               >
-                <Settings className="w-4 h-4 mr-2" />
-                MAINTENANCE
+                +30M
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Secondary Actions */}
-          <div className="flex gap-2">
+          {station.status === 'MAINTENANCE' && (
+            <Button 
+              variant="secondary"
+              className="w-full font-gaming text-xs h-8"
+              disabled
+            >
+              <Settings className="w-3 h-3 mr-1" />
+              MAINTENANCE
+            </Button>
+          )}
+
+          {/* Secondary Actions - Horizontal */}
+          <div className="flex gap-1">
             <Button 
               onClick={() => onAction(station.id, station.isLocked ? 'unlock' : 'lock')}
               variant="outline"
               size="sm"
-              className="flex-1 font-gaming"
+              className="flex-1 font-gaming text-xs h-7"
             >
               {station.isLocked ? (
-                <><Unlock className="w-4 h-4 mr-1" /> UNLOCK</>
+                <><Unlock className="w-3 h-3 mr-1" />UNLOCK</>
               ) : (
-                <><Lock className="w-4 h-4 mr-1" /> LOCK</>
+                <><Lock className="w-3 h-3 mr-1" />LOCK</>
               )}
             </Button>
             
@@ -269,64 +251,57 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
               onClick={onDelete}
               variant="outline"
               size="sm"
-              className="text-error hover:bg-error/10 hover:border-error font-gaming"
+              className="text-error hover:bg-error/10 hover:border-error font-gaming text-xs h-7 px-2"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3 h-3" />
             </Button>
           </div>
         </div>
 
-        {/* Session Start Form */}
+        {/* Session Start Form - Compact */}
         {showSessionForm && (
-          <div className="mt-4 p-4 bg-input/20 border border-primary/30 rounded-lg animate-slide-in-gaming">
-            <h4 className="font-gaming font-semibold text-primary mb-3">
-              INITIALIZE NEW SESSION
+          <div className="mt-3 p-3 bg-input/20 border border-primary/30 rounded-lg animate-slide-in-gaming">
+            <h4 className="font-gaming font-semibold text-primary mb-2 text-sm">
+              NEW SESSION
             </h4>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="font-gaming text-xs">PLAYER NAME</Label>
+            <div className="space-y-2">
+              <Input
+                placeholder="Player name"
+                value={sessionData.customerName}
+                onChange={(e) => setSessionData({...sessionData, customerName: e.target.value})}
+                className="bg-input/50 border-primary/30 font-gaming h-8 text-sm"
+              />
+              
+              <div className="grid grid-cols-2 gap-2">
                 <Input
-                  placeholder="Enter player name"
-                  value={sessionData.customerName}
-                  onChange={(e) => setSessionData({...sessionData, customerName: e.target.value})}
-                  className="bg-input/50 border-primary/30 font-gaming h-9"
+                  type="number"
+                  placeholder="Minutes"
+                  value={sessionData.timeMinutes}
+                  onChange={(e) => setSessionData({...sessionData, timeMinutes: parseInt(e.target.value)})}
+                  className="bg-input/50 border-primary/30 font-gaming h-8 text-sm"
+                />
+                <Input
+                  type="number"
+                  step="0.50"
+                  placeholder="Prepaid $"
+                  value={sessionData.prepaidAmount}
+                  onChange={(e) => setSessionData({...sessionData, prepaidAmount: parseFloat(e.target.value)})}
+                  className="bg-input/50 border-primary/30 font-gaming h-8 text-sm"
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="font-gaming text-xs">TIME (MIN)</Label>
-                  <Input
-                    type="number"
-                    value={sessionData.timeMinutes}
-                    onChange={(e) => setSessionData({...sessionData, timeMinutes: parseInt(e.target.value)})}
-                    className="bg-input/50 border-primary/30 font-gaming h-9"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="font-gaming text-xs">PREPAID ($)</Label>
-                  <Input
-                    type="number"
-                    step="0.50"
-                    value={sessionData.prepaidAmount}
-                    onChange={(e) => setSessionData({...sessionData, prepaidAmount: parseFloat(e.target.value)})}
-                    className="bg-input/50 border-primary/30 font-gaming h-9"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2">
                 <Button 
                   onClick={handleStartSession}
-                  className="flex-1 btn-gaming font-gaming"
+                  className="flex-1 btn-gaming font-gaming text-sm h-8"
                 >
-                  <Zap className="w-4 h-4 mr-1" />
+                  <Zap className="w-3 h-3 mr-1" />
                   LAUNCH
                 </Button>
                 <Button 
                   onClick={() => setShowSessionForm(false)}
                   variant="secondary"
-                  className="flex-1 font-gaming"
+                  className="flex-1 font-gaming text-sm h-8"
                 >
                   CANCEL
                 </Button>
