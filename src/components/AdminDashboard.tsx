@@ -13,7 +13,9 @@ import {
   Activity,
   Plus,
   Palette,
-  Edit3
+  Edit3,
+  Grid3X3,
+  List
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import StationCard from './StationCard';
 import StatsCard from './StatsCard';
 import AddStationModal from './AddStationModal';
+import StationGridView from './StationGridView';
+import StationPopup from './StationPopup';
 import {
   getStations,
   createStation,
@@ -46,6 +50,7 @@ interface Station {
   ipAddress?: string;
   specifications: string;
   isLocked: boolean;
+  lockedFor?: string;
   currentSession?: {
     id: string;
     customerName: string;
@@ -90,13 +95,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   ]);*/
 
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [showAddStation, setShowAddStation] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('connected');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'stations'>('dashboard');
   const [stationFilter, setStationFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>('cyber-blue');
-  const [cafeName, setCafeName] = useState('GAMING CAFE ADMIN');
+  const [stationView, setStationView] = useState<'list' | 'grid'>('list');
+  const [showAddStation, setShowAddStation] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [showStationPopup, setShowStationPopup] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
+  const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>(() => {
+    return localStorage.getItem('gaming-cafe-theme') as 'cyber-blue' | 'neon-purple' || 'cyber-blue';
+  });
+  const [cafeName, setCafeName] = useState(() => {
+    return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -247,17 +259,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           await lockStation(stationId);
           setStations(prev =>
             prev.map(station =>
-              station.id === stationId ? { ...station, isLocked: true } : station
+              station.id === stationId ? { 
+                ...station, 
+                isLocked: true,
+                lockedFor: data?.assignedUser || undefined
+              } : station
             )
           );
-          toast({ title: "Station Locked", description: "The station has been locked." });
+          toast({ 
+            title: "Station Locked", 
+            description: data?.assignedUser 
+              ? `Station assigned to ${data.assignedUser}`
+              : "The station has been locked." 
+          });
           break;
 
         case "unlock":
           await unlockStation(stationId);
           setStations(prev =>
             prev.map(station =>
-              station.id === stationId ? { ...station, isLocked: false } : station
+              station.id === stationId ? { 
+                ...station, 
+                isLocked: false,
+                lockedFor: undefined
+              } : station
             )
           );
           toast({ title: "Station Unlocked", description: "The station is now available." });
@@ -352,6 +377,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleStationClick = (station: Station) => {
+    setSelectedStation(station);
+    setShowStationPopup(true);
+  };
+
+  const handleCloseStationPopup = () => {
+    setShowStationPopup(false);
+    setSelectedStation(null);
   };
 
   return (
@@ -531,58 +566,97 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </Button>
             </div>
 
-            {/* Filter Buttons */}
-            <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-3">
-              <span className="text-sm font-gaming text-muted-foreground">FILTER:</span>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={stationFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStationFilter('all')}
-                  className={`font-gaming text-xs ${stationFilter === 'all' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
-                >
-                  ALL ({stations.length})
-                </Button>
-                <Button
-                  variant={stationFilter === 'active' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStationFilter('active')}
-                  className={`font-gaming text-xs ${stationFilter === 'active' ? 'btn-gaming' : 'hover:bg-accent/10'}`}
-                >
-                  ACTIVE ({stations.filter(s => s.status === 'OCCUPIED').length})
-                </Button>
-                <Button
-                  variant={stationFilter === 'inactive' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStationFilter('inactive')}
-                  className={`font-gaming text-xs ${stationFilter === 'inactive' ? 'btn-gaming' : 'hover:bg-secondary/10'}`}
-                >
-                  INACTIVE ({stations.filter(s => s.status !== 'OCCUPIED').length})
-                </Button>
+            {/* Filter and View Controls */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+              <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-3">
+                <span className="text-sm font-gaming text-muted-foreground">FILTER:</span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={stationFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStationFilter('all')}
+                    className={`font-gaming text-xs ${stationFilter === 'all' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
+                  >
+                    ALL ({stations.length})
+                  </Button>
+                  <Button
+                    variant={stationFilter === 'active' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStationFilter('active')}
+                    className={`font-gaming text-xs ${stationFilter === 'active' ? 'btn-gaming' : 'hover:bg-accent/10'}`}
+                  >
+                    ACTIVE ({stations.filter(s => s.status === 'OCCUPIED').length})
+                  </Button>
+                  <Button
+                    variant={stationFilter === 'inactive' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStationFilter('inactive')}
+                    className={`font-gaming text-xs ${stationFilter === 'inactive' ? 'btn-gaming' : 'hover:bg-secondary/10'}`}
+                  >
+                    INACTIVE ({stations.filter(s => s.status !== 'OCCUPIED').length})
+                  </Button>
+                </div>
+              </div>
+
+              {/* View Toggle */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-gaming text-muted-foreground">VIEW:</span>
+                <div className="flex gap-1">
+                  <Button
+                    variant={stationView === 'list' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStationView('list')}
+                    className={`font-gaming text-xs px-3 ${stationView === 'list' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={stationView === 'grid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStationView('grid')}
+                    className={`font-gaming text-xs px-3 ${stationView === 'grid' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {stations
-                .filter(station => {
-                  if (stationFilter === 'active') return station.status === 'OCCUPIED';
-                  if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
-                  return true;
-                })
-                .map((station, index) => (
-                  <div
-                    key={station.id}
-                    className="animate-slide-in-gaming"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <StationCard
-                      station={station}
-                      onAction={handleStationAction}
-                      onDelete={() => handleDeleteStation(station.id)}
-                    />
-                  </div>
-                ))}
-            </div>
+            {/* Station Display */}
+            {stationView === 'list' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {stations
+                  .filter(station => {
+                    if (stationFilter === 'active') return station.status === 'OCCUPIED';
+                    if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
+                    return true;
+                  })
+                  .map((station, index) => (
+                    <div
+                      key={station.id}
+                      className="animate-slide-in-gaming"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <StationCard
+                        station={station}
+                        onAction={handleStationAction}
+                        onDelete={() => handleDeleteStation(station.id)}
+                      />
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <Card className="card-gaming">
+                <StationGridView 
+                  stations={stations.filter(station => {
+                    if (stationFilter === 'active') return station.status === 'OCCUPIED';
+                    if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
+                    return true;
+                  })}
+                  onStationClick={handleStationClick}
+                />
+              </Card>
+            )}
           </div>
         )}
       </main>
@@ -594,6 +668,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           onAdd={handleAddStation}
         />
       )}
+
+      {/* Station Popup */}
+      <StationPopup
+        station={selectedStation}
+        isOpen={showStationPopup}
+        onClose={handleCloseStationPopup}
+        onAction={handleStationAction}
+        onDelete={() => selectedStation && handleDeleteStation(selectedStation.id)}
+      />
 
       {/* Settings Modal */}
       {showSettings && (

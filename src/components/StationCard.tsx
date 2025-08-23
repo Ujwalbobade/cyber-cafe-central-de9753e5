@@ -28,6 +28,7 @@ interface Station {
   ipAddress?: string;
   specifications: string;
   isLocked: boolean;
+  lockedFor?: string;
   currentSession?: {
     id: string;
     customerName: string;
@@ -204,7 +205,7 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
           {station.status === 'OCCUPIED' && (
             <div className="flex gap-1">
               <Button 
-                onClick={() => onAction(station.id, 'end-session')}
+                onClick={() => onAction(station.id, 'end-session', { sessionId: station.currentSession?.id })}
                 variant="destructive"
                 className="flex-1 font-gaming text-xs h-8"
               >
@@ -212,7 +213,10 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
                 END
               </Button>
               <Button 
-                onClick={() => onAction(station.id, 'add-time', { minutes: 30 })}
+                onClick={() => onAction(station.id, 'add-time', { 
+                  sessionId: station.currentSession?.id, 
+                  minutes: 30 
+                })}
                 variant="secondary"
                 className="font-gaming text-xs h-8 px-2"
               >
@@ -238,12 +242,12 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
               onClick={() => onAction(station.id, station.isLocked ? 'unlock' : 'lock')}
               variant="outline"
               size="sm"
-              className="flex-1 font-gaming text-xs h-7"
+              className="font-gaming text-xs h-7 px-2"
             >
               {station.isLocked ? (
-                <><Unlock className="w-3 h-3 mr-1" />UNLOCK</>
+                <Unlock className="w-3 h-3" />
               ) : (
-                <><Lock className="w-3 h-3 mr-1" />LOCK</>
+                <Lock className="w-3 h-3" />
               )}
             </Button>
             
@@ -283,7 +287,7 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
                 <Input
                   type="number"
                   step="0.50"
-                  placeholder="Prepaid $"
+                  placeholder="Prepaid ₹"
                   value={sessionData.prepaidAmount}
                   onChange={(e) => setSessionData({...sessionData, prepaidAmount: parseFloat(e.target.value)})}
                   className="bg-input/50 border-primary/30 font-gaming h-8 text-sm"
