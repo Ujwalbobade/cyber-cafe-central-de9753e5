@@ -1,5 +1,7 @@
-const API_BASE_URL = 'http://localhost:8087/api';
-
+//const API_BASE_URL = 'http://localhost:8087/api';
+//console.log("🌐 FE Hostname Detected:", window.location.hostname);
+// For REST APIs
+const API_BASE_URL = `http://${window.location.hostname}:8087/api`;
 const getAuthHeaders = () => {
   const token = localStorage.getItem('adminToken');
   return {

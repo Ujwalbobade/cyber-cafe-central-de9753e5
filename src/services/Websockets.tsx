@@ -1,4 +1,6 @@
 type ConnectionState = "connected" | "disconnected" | "error";
+// For WebSocket
+const WS_URL = `ws://${window.location.hostname}:8087/ws/admin`;
 
 export default class WebSocketService {
   private socket: WebSocket | null = null;
@@ -11,7 +13,8 @@ export default class WebSocketService {
 
   connect(): void {
     try {
-      this.socket = new WebSocket("ws://localhost:8087/ws/admin");
+      this.socket = new WebSocket(WS_URL);
+      
 
       this.socket.onopen = () => {
         console.log("Admin WebSocket connected");
@@ -19,15 +22,22 @@ export default class WebSocketService {
         this.onConnectionChange?.("connected");
       };
 
+
       this.socket.onmessage = (event: MessageEvent) => {
+        console.log("📩 Raw WS message:", event.data);
+
         try {
-          const data = JSON.parse(event.data);
-          this.onMessage?.(data);
+          // If your server always sends JSON
+          const data: unknown = JSON.parse(event.data as string);
+          console.log("✅ Parsed WS message:", data);
+
+          if (this.onMessage) {
+            this.onMessage(data);
+          }
         } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
+          console.error("❌ Error parsing WebSocket message:", error);
         }
       };
-
       this.socket.onclose = () => {
         console.log("Admin WebSocket disconnected");
         this.onConnectionChange?.("disconnected");

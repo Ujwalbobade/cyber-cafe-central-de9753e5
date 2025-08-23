@@ -306,28 +306,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           );
           toast({ title: "Station Unlocked", description: "The station is now available." });
           break;
-        /*case "start-session":
-          const session = await startSession(stationId, data);
-          const endTime = new Date(session.startTime).getTime() + session.timeRemaining * 60000;
 
-          setStations(prev =>
-            prev.map(station =>
-              station.id === stationId
-                ? {
-                  ...station,
-                  status: "OCCUPIED",
-                  currentSession: {
-                    id: session.id,
-                    customerName: session.customerName,
-                    startTime: session.startTime,
-                    endTime,
-                    timeRemaining: session.timeRemaining,
-                  },
-                }
-                : station
-            )
-          );
-          break;*/
         case "start-session":
           const session = await startSession(stationId, data); // backend creates session
           setStations(prev =>
@@ -346,25 +325,59 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 : station
             )
           );
+          console.log("📢 Session started:", session);
           toast({ title: "Session Started", description: `Session started for ${data.customerName}.` });
           break;
-
+        /*
+                case "end-session":
+                  if (!data?.sessionId) throw new Error("Session ID required to end session");
+                  await endSession(data.sessionId);
+        
+                  setStations(prev =>
+                    prev.map(station =>
+                      station.currentSession?.id === data.sessionId
+                        ? { ...station, status: "AVAILABLE", currentSession: undefined }
+                        : station
+                    )
+                  );
+        
+                  toast({
+                    title: "Session Ended",
+                    description: `Session ${data.sessionId} has been ended.`,
+                  });
+                  break;*/
         case "end-session":
-          if (!data?.sessionId) throw new Error("Session ID required to end session");
-          await endSession(data.sessionId);
+          if (!data?.sessionId) {
+            console.error("❌ Session ID missing in end-session event:", data);
+            throw new Error("Session ID required to end session");
+          }
 
-          setStations(prev =>
-            prev.map(station =>
-              station.currentSession?.id === data.sessionId
-                ? { ...station, status: "AVAILABLE", currentSession: undefined }
-                : station
-            )
-          );
+          console.log("📢 Ending session with ID:", data.sessionId);
 
-          toast({
-            title: "Session Ended",
-            description: `Session ${data.sessionId} has been ended.`,
-          });
+          try {
+            await endSession(data.sessionId);
+            console.log("✅ Backend confirmed session end:", data.sessionId);
+
+            setStations(prev =>
+              prev.map(station =>
+                station.currentSession?.id === data.sessionId
+                  ? { ...station, status: "AVAILABLE", currentSession: undefined }
+                  : station
+              )
+            );
+
+            toast({
+              title: "Session Ended",
+              description: `Session ${data.sessionId} has been ended.`,
+            });
+          } catch (err) {
+            console.error("🔥 Error ending session:", err);
+            toast({
+              title: "Error",
+              description: "Failed to end session. Check logs.",
+              variant: "destructive",
+            });
+          }
           break;
         case "add-time":
           if (!data?.sessionId || !data?.minutes) throw new Error("Session ID and minutes required");
