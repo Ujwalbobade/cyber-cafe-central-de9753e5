@@ -41,15 +41,21 @@ interface StationCardProps {
   station: Station;
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: () => void;
+  systemConfig?: {
+    timeOptions: number[];
+    hourlyRates: { PC: number; PS5: number; PS4: number };
+  };
 }
 
-const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }) => {
+const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, systemConfig }) => {
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [sessionData, setSessionData] = useState({
     customerName: '',
     timeMinutes: 60,
     prepaidAmount: 0
   });
+  const [showLockForm, setShowLockForm] = useState(false);
+  const [lockUser, setLockUser] = useState('');
 
   const getStatusConfig = (status: Station['status']) => {
     switch (status) {
@@ -139,8 +145,15 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
               {statusConfig.text}
             </Badge>
             {station.isLocked && (
-              <div className="p-0.5 bg-error/20 rounded border border-error/30">
+              <div className="p-0.5 bg-error/20 rounded border border-error/30 relative group">
                 <Lock className="w-3 h-3 text-error" />
+                {station.lockedFor && (
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
+                    <div className="bg-card border border-primary/20 rounded px-2 py-1 text-xs font-gaming text-foreground whitespace-nowrap shadow-lg">
+                      Assigned to: {station.lockedFor}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -239,7 +252,13 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
           {/* Secondary Actions - Horizontal */}
           <div className="flex gap-1">
             <Button 
-              onClick={() => onAction(station.id, station.isLocked ? 'unlock' : 'lock')}
+              onClick={() => {
+                if (station.isLocked) {
+                  onAction(station.id, 'unlock');
+                } else {
+                  setShowLockForm(true);
+                }
+              }}
               variant="outline"
               size="sm"
               className="font-gaming text-xs h-7 px-2"
@@ -277,17 +296,21 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
               />
               
               <div className="grid grid-cols-2 gap-2">
-                <Input
-                  type="number"
-                  placeholder="Minutes"
+                <select
                   value={sessionData.timeMinutes}
                   onChange={(e) => setSessionData({...sessionData, timeMinutes: parseInt(e.target.value)})}
-                  className="bg-input/50 border-primary/30 font-gaming h-8 text-sm"
-                />
+                  className="bg-input/50 border border-primary/30 font-gaming h-8 text-sm rounded-md px-2 text-foreground"
+                >
+                  {(systemConfig?.timeOptions || [10, 15, 30, 60, 120, 180]).map(minutes => (
+                    <option key={minutes} value={minutes}>
+                      {minutes < 60 ? `${minutes} min` : `${minutes/60} hour${minutes > 60 ? 's' : ''}`}
+                    </option>
+                  ))}
+                </select>
                 <Input
                   type="number"
                   step="0.50"
-                  placeholder="Prepaid ₹"
+                  placeholder={`Prepaid ₹ (${((systemConfig?.hourlyRates?.[station.type] || 150) * sessionData.timeMinutes / 60).toFixed(0)} calc.)`}
                   value={sessionData.prepaidAmount}
                   onChange={(e) => setSessionData({...sessionData, prepaidAmount: parseFloat(e.target.value)})}
                   className="bg-input/50 border-primary/30 font-gaming h-8 text-sm"
@@ -304,6 +327,47 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
                 </Button>
                 <Button 
                   onClick={() => setShowSessionForm(false)}
+                  variant="secondary"
+                  className="flex-1 font-gaming text-sm h-8"
+                >
+                  CANCEL
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Lock Assignment Form */}
+        {showLockForm && (
+          <div className="mt-3 p-3 bg-warning/10 border border-warning/30 rounded-lg animate-slide-in-gaming">
+            <h4 className="font-gaming font-semibold text-warning mb-2 text-sm">
+              ASSIGN STATION LOCK
+            </h4>
+            <div className="space-y-2">
+              <Input
+                placeholder="Assign to user (optional)"
+                value={lockUser}
+                onChange={(e) => setLockUser(e.target.value)}
+                className="bg-input/50 border-warning/30 font-gaming h-8 text-sm"
+              />
+              
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => {
+                    onAction(station.id, 'lock', { assignedUser: lockUser.trim() || undefined });
+                    setShowLockForm(false);
+                    setLockUser('');
+                  }}
+                  className="flex-1 bg-warning hover:bg-warning/80 text-warning-foreground font-gaming text-sm h-8"
+                >
+                  <Lock className="w-3 h-3 mr-1" />
+                  LOCK
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowLockForm(false);
+                    setLockUser('');
+                  }}
                   variant="secondary"
                   className="flex-1 font-gaming text-sm h-8"
                 >

@@ -15,7 +15,8 @@ import {
   Palette,
   Edit3,
   Grid3X3,
-  List
+  List,
+  Cog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -26,6 +27,7 @@ import StatsCard from './StatsCard';
 import AddStationModal from './AddStationModal';
 import StationGridView from './StationGridView';
 import StationPopup from './StationPopup';
+import SystemConfig, { SystemConfiguration } from './SystemConfig';
 import {
   getStations,
   createStation,
@@ -103,11 +105,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [showStationPopup, setShowStationPopup] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
+  const [showSystemConfig, setShowSystemConfig] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>(() => {
     return localStorage.getItem('gaming-cafe-theme') as 'cyber-blue' | 'neon-purple' || 'cyber-blue';
   });
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
+  });
+  const [systemConfig, setSystemConfig] = useState<SystemConfiguration>(() => {
+    const saved = localStorage.getItem('system-config');
+    return saved ? JSON.parse(saved) : {
+      hourlyRates: { PC: 150, PS5: 120, PS4: 100 },
+      timeOptions: [10, 15, 30, 60, 120, 180],
+      nightPass: {
+        enabled: false,
+        startTime: '22:00',
+        endTime: '06:00',
+        rate: 80,
+        fixedPrice: 500
+      },
+      happyHours: [],
+      customPacks: []
+    };
   });
   const { toast } = useToast();
 
@@ -389,6 +408,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setSelectedStation(null);
   };
 
+  const handleSystemConfigSave = (config: SystemConfiguration) => {
+    setSystemConfig(config);
+    localStorage.setItem('system-config', JSON.stringify(config));
+    toast({
+      title: "Configuration Saved",
+      description: "System configuration has been updated successfully.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Header */}
@@ -448,6 +476,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               >
                 <Palette className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
                 <span className="hidden md:inline">Theme</span>
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowSystemConfig(true)}
+                className="hover:bg-primary/10 px-2 md:px-4"
+                size="sm"
+              >
+                <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                <span className="hidden md:inline">Config</span>
               </Button>
               <Button
                 variant="ghost"
@@ -641,6 +678,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         station={station}
                         onAction={handleStationAction}
                         onDelete={() => handleDeleteStation(station.id)}
+                        systemConfig={systemConfig}
                       />
                     </div>
                   ))}
@@ -676,6 +714,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         onClose={handleCloseStationPopup}
         onAction={handleStationAction}
         onDelete={() => selectedStation && handleDeleteStation(selectedStation.id)}
+        systemConfig={systemConfig}
       />
 
       {/* Settings Modal */}
@@ -735,7 +774,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
             <div className="flex gap-2 mt-6">
               <Button
-                onClick={() => setShowSettings(false)}
+                onClick={() => {
+                  localStorage.setItem('cafe-name', cafeName);
+                  localStorage.setItem('gaming-cafe-theme', currentTheme);
+                  setShowSettings(false);
+                }}
                 className="flex-1 btn-gaming font-gaming"
               >
                 SAVE SETTINGS
@@ -744,6 +787,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </Card>
         </div>
       )}
+
+      {/* System Configuration Modal */}
+      <SystemConfig
+        isOpen={showSystemConfig}
+        onClose={() => setShowSystemConfig(false)}
+        onSave={handleSystemConfigSave}
+        currentConfig={systemConfig}
+      />
     </div>
   );
 };

@@ -45,14 +45,19 @@ interface StationPopupProps {
   onClose: () => void;
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: () => void;
+  systemConfig?: {
+    timeOptions: number[];
+    hourlyRates: { PC: number; PS5: number; PS4: number };
+  };
 }
 
-const StationPopup: React.FC<StationPopupProps> = ({ 
-  station, 
-  isOpen, 
-  onClose, 
-  onAction, 
-  onDelete 
+const StationPopup: React.FC<StationPopupProps> = ({
+  station,
+  isOpen,
+  onClose,
+  onAction,
+  onDelete,
+  systemConfig
 }) => {
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [showLockForm, setShowLockForm] = useState(false);
@@ -324,18 +329,22 @@ const StationPopup: React.FC<StationPopupProps> = ({
                   />
                   
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="number"
-                      placeholder="Minutes"
+                    <select
                       value={sessionData.timeMinutes}
                       onChange={(e) => setSessionData({...sessionData, timeMinutes: parseInt(e.target.value)})}
-                      className="bg-input/50 border-primary/30 font-gaming"
-                    />
+                      className="bg-input/50 border border-primary/30 font-gaming h-9 text-sm rounded-md px-3 text-foreground"
+                    >
+                      {(systemConfig?.timeOptions || [10, 15, 30, 60, 120, 180]).map(minutes => (
+                        <option key={minutes} value={minutes}>
+                          {minutes < 60 ? `${minutes} min` : `${minutes/60} hour${minutes > 60 ? 's' : ''}`}
+                        </option>
+                      ))}
+                    </select>
                     <div className="relative">
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="Prepaid ₹"
+                        placeholder={`Prepaid ₹ (${((systemConfig?.hourlyRates?.[station.type] || 150) * sessionData.timeMinutes / 60).toFixed(0)} calc.)`}
                         value={sessionData.prepaidAmount}
                         onChange={(e) => setSessionData({...sessionData, prepaidAmount: parseFloat(e.target.value)})}
                         className="bg-input/50 border-primary/30 font-gaming pl-8"
