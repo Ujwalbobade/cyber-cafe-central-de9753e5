@@ -84,7 +84,9 @@ const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationCl
           {/* Status Indicator */}
           <div className="text-xs font-gaming text-muted-foreground">
             {station.status === 'AVAILABLE' ? 'FREE' :
-             station.status === 'OCCUPIED' ? 'BUSY' : 'MAINT'}
+             station.status === 'OCCUPIED' && station.currentSession ? 
+               `${Math.floor(station.currentSession.timeRemaining / 60)}:${(station.currentSession.timeRemaining % 60).toString().padStart(2, '0')}` : 
+               station.status === 'OCCUPIED' ? 'BUSY' : 'MAINT'}
           </div>
 
           {/* Lock Indicator */}

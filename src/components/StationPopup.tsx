@@ -141,8 +141,8 @@ const StationPopup: React.FC<StationPopupProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="card-gaming max-w-md w-full p-0 overflow-hidden">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="card-gaming max-w-md w-full p-0 overflow-hidden" onInteractOutside={(e) => e.preventDefault()}>
         <div className="relative">
           {/* Header */}
           <DialogHeader className="p-6 pb-4">
