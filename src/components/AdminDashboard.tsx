@@ -23,13 +23,12 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import StationCard from './StationCard';
 import StatsCard from './StatsCard';
 import AddStationModal from './AddStationModal';
 import StationGridView from './StationGridView';
 import StationPopup from './StationPopup';
-import SystemConfig, { SystemConfiguration } from './SystemConfig';
-import { SystemConfigurationData } from './SystemConfigurationData';
 import {
   getStations,
   createStation,
@@ -44,8 +43,6 @@ import {
 interface AdminDashboardProps {
   onLogout: () => void;
 }
-
-// Using SystemConfiguration from SystemConfig component
 
 interface Station {
   id: string;
@@ -66,42 +63,10 @@ interface Station {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
+  const navigate = useNavigate();
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
-  const initialConfig: SystemConfiguration = {
-    hourlyRates: {
-      PC: 150,
-      PS5: 120,
-      PS4: 100
-    },
-    timeOptions: [30, 60, 90, 120, 180, 240],
-    nightPass: {
-      enabled: true,
-      startTime: "22:00",
-      endTime: "06:00",
-      rate: 500,
-      fixedPrice: 500
-    },
-    happyHours: [
-      {
-        enabled: true,
-        startTime: "14:00",
-        endTime: "17:00",
-        discountPercent: 20,
-        days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
-      }
-    ],
-    customPacks: [
-      {
-        id: "pack1",
-        name: "4 Hours Gaming Pack",
-        duration: 240,
-        price: 400,
-        description: "4 hours of unlimited gaming",
-        validStationTypes: ["PC", "PS5", "PS4"]
-      }
-    ]
-  };
+  const { toast } = useToast();
 
     // Using initialConfig defined above
   useEffect(() => {
@@ -130,30 +95,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [showStationPopup, setShowStationPopup] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
-  const [activeConfigTab, setActiveConfigTab] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>(() => {
     return localStorage.getItem('gaming-cafe-theme') as 'cyber-blue' | 'neon-purple' || 'cyber-blue';
   });
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
   });
-  const [systemConfig, setSystemConfig] = useState<SystemConfiguration>(() => {
-    const saved = localStorage.getItem('system-config');
-    return saved ? JSON.parse(saved) : {
-      hourlyRates: { PC: 150, PS5: 120, PS4: 100 },
-      timeOptions: [10, 15, 30, 60, 120, 180],
-      nightPass: {
-        enabled: false,
-        startTime: '22:00',
-        endTime: '06:00',
-        rate: 80,
-        fixedPrice: 500
-      },
-      happyHours: [],
-      customPacks: []
-    };
-  });
-  const { toast } = useToast();
 
   useEffect(() => {
     // Apply theme to document
@@ -446,15 +393,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setSelectedStation(null);
   };
 
-  const handleSystemConfigSave = (config: SystemConfiguration) => {
-    setSystemConfig(config);
-    localStorage.setItem('system-config', JSON.stringify(config));
-    toast({
-      title: "Configuration Saved",
-      description: "System configuration has been updated successfully.",
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Mobile Navbar with collapsible menu */}
@@ -471,7 +409,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <div className="mt-3 bg-card/90 backdrop-blur-md rounded-lg p-2 shadow-lg flex justify-around">
               <Button
                 variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
-                onClick={() => { setActiveTab('dashboard'); setActiveConfigTab(false); }}
+                onClick={() => setActiveTab('dashboard')}
                 className={`flex-1 mx-1 ${activeTab === 'dashboard' ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
                 size="sm"
               >
@@ -480,7 +418,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </Button>
               <Button
                 variant={activeTab === 'stations' ? 'default' : 'ghost'}
-                onClick={() => { setActiveTab('stations'); setActiveConfigTab(false); }}
+                onClick={() => setActiveTab('stations')}
                 className={`flex-1 mx-1 ${activeTab === 'stations' ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
                 size="sm"
               >
@@ -488,13 +426,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <span className="block text-xs">Stations</span>
               </Button>
               <Button
-                variant={activeConfigTab ? 'default' : 'ghost'}
-                onClick={() => { setActiveConfigTab(true); }}
-                className={`flex-1 mx-1 ${activeConfigTab ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
+                variant="ghost"
+                onClick={() => navigate('/settings')}
+                className="flex-1 mx-1 hover:bg-primary/10 font-gaming"
                 size="sm"
               >
                 <Cog className="w-5 h-5 mx-auto" />
-                <span className="block text-xs">Config</span>
+                <span className="block text-xs">Settings</span>
               </Button>
             </div>
           </CollapsibleContent>
@@ -562,12 +500,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </Button>
                 <Button
                   variant="ghost"
-                  onClick={() => setActiveConfigTab(true)}
+                  onClick={() => navigate('/settings')}
                   className="hover:bg-primary/10 px-2 md:px-4"
                   size="sm"
                 >
                   <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                  <span className="hidden md:inline">Config</span>
+                  <span className="hidden md:inline">Settings</span>
                 </Button>
               </div>
 
@@ -589,22 +527,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
-        {/* Dashboard / Config / Stations Tabs */}
-        {activeConfigTab && (
-          <div className="space-y-6 animate-slide-in-gaming">
-            <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground mb-4">SYSTEM CONFIGURATION</h2>
-            <Card className="card-gaming p-6">
-              <SystemConfig
-                isOpen={true}
-                onClose={() => setActiveConfigTab(false)}
-                onSave={handleSystemConfigSave}
-                currentConfig={systemConfig}
-              />
-            </Card>
-          </div>
-        )}
-
-        {!activeConfigTab && activeTab === 'dashboard' && (
+        {activeTab === 'dashboard' && (
           <div className="space-y-8 animate-slide-in-gaming">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground">
@@ -676,7 +599,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </Button>
 
                 <Button
-                  onClick={() => setActiveConfigTab(true)}
+                  onClick={() => navigate('/settings')}
                   className="h-20 bg-gradient-card border-dashed border-2 border-secondary/30 hover:border-secondary hover:shadow-glow-secondary transition-all duration-300"
                   variant="ghost"
                 >
@@ -690,7 +613,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         )}
 
-        {!activeConfigTab && activeTab === 'stations' && (
+        {activeTab === 'stations' && (
           <div className="space-y-6 animate-slide-in-gaming">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
               <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground">
@@ -780,7 +703,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         station={station}
                         onAction={handleStationAction}
                         onDelete={() => handleDeleteStation(station.id)}
-                        systemConfig={systemConfig}
                       />
                     </div>
                   ))}
@@ -816,7 +738,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         onClose={handleCloseStationPopup}
         onAction={handleStationAction}
         onDelete={() => selectedStation && handleDeleteStation(selectedStation.id)}
-        systemConfig={systemConfig}
       />
 
       {/* Settings Modal */}
@@ -891,7 +812,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       )}
 
       {/* System Configuration Modal */}
-      {/* SystemConfig modal removed, now handled by tab view above */}
+      {/* SystemConfig modal removed, now handled by dedicated settings page */}
     </div>
   );
 }

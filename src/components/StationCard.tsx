@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-interface Station {
+export interface Station {
   id: string;
   name: string;
   type: 'PC' | 'PS5' | 'PS4';
@@ -41,13 +41,9 @@ interface StationCardProps {
   station: Station;
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: () => void;
-  systemConfig?: {
-    timeOptions: number[];
-    hourlyRates: { PC: number; PS5: number; PS4: number };
-  };
 }
 
-const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, systemConfig }) => {
+const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }) => {
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [sessionData, setSessionData] = useState({
     customerName: '',
@@ -301,7 +297,7 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, 
                   onChange={(e) => setSessionData({...sessionData, timeMinutes: parseInt(e.target.value)})}
                   className="bg-input/50 border border-primary/30 font-gaming h-8 text-sm rounded-md px-2 text-foreground"
                 >
-                  {(systemConfig?.timeOptions || [10, 15, 30, 60, 120, 180]).map(minutes => (
+                  {[10, 15, 30, 60, 120, 180].map(minutes => (
                     <option key={minutes} value={minutes}>
                       {minutes < 60 ? `${minutes} min` : `${minutes/60} hour${minutes > 60 ? 's' : ''}`}
                     </option>
@@ -310,7 +306,7 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, 
                 <Input
                   type="number"
                   step="0.50"
-                  placeholder={`Prepaid ₹ (${((systemConfig?.hourlyRates?.[station.type] || 150) * sessionData.timeMinutes / 60).toFixed(0)} calc.)`}
+                  placeholder={`Prepaid ₹ (${(150 * sessionData.timeMinutes / 60).toFixed(0)} calc.)`}
                   value={sessionData.prepaidAmount}
                   onChange={(e) => setSessionData({...sessionData, prepaidAmount: parseFloat(e.target.value)})}
                   className="bg-input/50 border-primary/30 font-gaming h-8 text-sm"
