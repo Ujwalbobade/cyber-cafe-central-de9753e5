@@ -141,31 +141,9 @@ const StationPopup: React.FC<StationPopupProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()} modal>
-      <DialogContent 
-        className={[
-          'card-gaming',
-          'fixed',
-          'top-1/2',
-          'left-1/2',
-          '-translate-x-1/2',
-          '-translate-y-1/2',
-          'w-full',
-          'sm:w-[90vw]',
-          'max-w-full',
-          'sm:max-w-md',
-          'p-0',
-          'overflow-hidden',
-          'max-h-screen',
-          'sm:max-h-[90vh]',
-          'overflow-y-auto'
-        ].join(' ')}
-        onInteractOutside={(e) => {
-          e.preventDefault();
-        }}
-        onPointerDownOutside={(e) => {
-          e.preventDefault();
-        }}
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="card-gaming w-full max-w-md mx-auto p-0 max-h-[90vh] overflow-y-auto"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="relative">
           {/* Header */}

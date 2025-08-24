@@ -1,5 +1,6 @@
 import React from 'react';
-import { Monitor, Gamepad2 } from 'lucide-react';
+import { Monitor, Gamepad2, Lock, Unlock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Station {
   id: string;
@@ -22,9 +23,10 @@ interface Station {
 interface StationGridViewProps {
   stations: Station[];
   onStationClick: (station: Station) => void;
+  onStationAction: (stationId: string, action: string, data?: any) => void;
 }
 
-const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationClick }) => {
+const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationClick, onStationAction }) => {
   const getStationColor = (station: Station) => {
     if (station.isLocked) return 'bg-warning/20 border-warning shadow-glow-warning';
     switch (station.status) {
@@ -61,15 +63,15 @@ const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationCl
       {stations.map((station, index) => (
         <div
           key={station.id}
-          onClick={() => onStationClick(station)}
           className={`
             relative w-16 h-16 rounded-full border-2 cursor-pointer
             flex flex-col items-center justify-center
             transition-all duration-300 hover:scale-110
             ${getStationColor(station)}
-            animate-fade-in
+            animate-fade-in group
           `}
           style={{ animationDelay: `${index * 0.05}s` }}
+          onClick={() => onStationClick(station)}
         >
           {/* Station Type Icon */}
           <div className="absolute -top-1 -right-1 w-5 h-5 bg-card rounded-full flex items-center justify-center border border-primary/30">
@@ -89,10 +91,41 @@ const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationCl
                station.status === 'OCCUPIED' ? 'BUSY' : 'MAINT'}
           </div>
 
-          {/* Lock Indicator */}
-          {station.isLocked && (
+          {/* Lock Indicator and Quick Action */}
+          {station.isLocked ? (
             <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-warning rounded-full flex items-center justify-center">
               <div className="w-2 h-2 bg-warning-foreground rounded-full" />
+            </div>
+          ) : (
+            <div className="absolute -bottom-1 -left-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-4 h-4 p-0 bg-primary/20 hover:bg-primary/40 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStationAction(station.id, 'lock');
+                }}
+              >
+                <Lock className="w-2 h-2 text-primary" />
+              </Button>
+            </div>
+          )}
+
+          {/* Unlock button for locked stations */}
+          {station.isLocked && (
+            <div className="absolute -bottom-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                size="sm" 
+                variant="ghost"
+                className="w-4 h-4 p-0 bg-warning/20 hover:bg-warning/40 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStationAction(station.id, 'unlock');
+                }}
+              >
+                <Unlock className="w-2 h-2 text-warning" />
+              </Button>
             </div>
           )}
 

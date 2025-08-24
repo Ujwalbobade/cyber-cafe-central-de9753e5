@@ -716,6 +716,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     return true;
                   })}
                   onStationClick={handleStationClick}
+                  onStationAction={handleStationAction}
                 />
               </Card>
             )}
