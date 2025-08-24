@@ -19,6 +19,7 @@ import {
   Cog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +29,7 @@ import AddStationModal from './AddStationModal';
 import StationGridView from './StationGridView';
 import StationPopup from './StationPopup';
 import SystemConfig, { SystemConfiguration } from './SystemConfig';
+import { SystemConfigurationData } from './SystemConfigurationData';
 import {
   getStations,
   createStation,
@@ -42,6 +44,8 @@ import {
 interface AdminDashboardProps {
   onLogout: () => void;
 }
+
+// Using SystemConfiguration from SystemConfig component
 
 interface Station {
   id: string;
@@ -64,6 +68,42 @@ interface Station {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialConfig: SystemConfiguration = {
+    hourlyRates: {
+      PC: 150,
+      PS5: 120,
+      PS4: 100
+    },
+    timeOptions: [30, 60, 90, 120, 180, 240],
+    nightPass: {
+      enabled: true,
+      startTime: "22:00",
+      endTime: "06:00",
+      rate: 500,
+      fixedPrice: 500
+    },
+    happyHours: [
+      {
+        enabled: true,
+        startTime: "14:00",
+        endTime: "17:00",
+        discountPercent: 20,
+        days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+      }
+    ],
+    customPacks: [
+      {
+        id: "pack1",
+        name: "4 Hours Gaming Pack",
+        duration: 240,
+        price: 400,
+        description: "4 hours of unlimited gaming",
+        validStationTypes: ["PC", "PS5", "PS4"]
+      }
+    ]
+  };
+
+    // Using initialConfig defined above
   useEffect(() => {
     const fetchStations = async () => {
       try {
@@ -82,21 +122,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     fetchStations();
   }, []);
-
-  /*const [stations, setStations] = useState<Station[]>([
-    {
-      id: '1',
-      name: 'GAMING-RIG-01',
-      type: 'PC',
-      status: 'AVAILABLE',
-      hourlyRate: 150,
-      ipAddress: '192.168.1.101',
-      specifications: 'RTX 4080, i7-13700K, 32GB DDR5',
-      isLocked: false,
-    },
-
-  ]);*/
-
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stations'>('dashboard');
   const [stationFilter, setStationFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [stationView, setStationView] = useState<'list' | 'grid'>('list');
@@ -105,7 +130,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [showStationPopup, setShowStationPopup] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
-  const [showSystemConfig, setShowSystemConfig] = useState(false);
+  const [activeConfigTab, setActiveConfigTab] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>(() => {
     return localStorage.getItem('gaming-cafe-theme') as 'cyber-blue' | 'neon-purple' || 'cyber-blue';
   });
@@ -432,6 +457,49 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gradient-hero">
+      {/* Mobile Navbar with collapsible menu */}
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
+        <Collapsible>
+          <div className="flex justify-end">
+            <CollapsibleTrigger asChild>
+              <Button variant="default" size="icon" className="rounded-full shadow-lg">
+                <Cog className="w-5 h-5" />
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent>
+            <div className="mt-3 bg-card/90 backdrop-blur-md rounded-lg p-2 shadow-lg flex justify-around">
+              <Button
+                variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
+                onClick={() => { setActiveTab('dashboard'); setActiveConfigTab(false); }}
+                className={`flex-1 mx-1 ${activeTab === 'dashboard' ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
+                size="sm"
+              >
+                <BarChart3 className="w-5 h-5 mx-auto" />
+                <span className="block text-xs">Dashboard</span>
+              </Button>
+              <Button
+                variant={activeTab === 'stations' ? 'default' : 'ghost'}
+                onClick={() => { setActiveTab('stations'); setActiveConfigTab(false); }}
+                className={`flex-1 mx-1 ${activeTab === 'stations' ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
+                size="sm"
+              >
+                <Monitor className="w-5 h-5 mx-auto" />
+                <span className="block text-xs">Stations</span>
+              </Button>
+              <Button
+                variant={activeConfigTab ? 'default' : 'ghost'}
+                onClick={() => { setActiveConfigTab(true); }}
+                className={`flex-1 mx-1 ${activeConfigTab ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
+                size="sm"
+              >
+                <Cog className="w-5 h-5 mx-auto" />
+                <span className="block text-xs">Config</span>
+              </Button>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
       {/* Header */}
       <header className="border-b border-primary/20 bg-card/50 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -463,59 +531,80 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
 
             <div className="flex items-center space-x-1 md:space-x-3">
-              <Button
-                variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('dashboard')}
-                className={`${activeTab === 'dashboard' ? 'btn-gaming' : 'hover:bg-primary/10'} px-2 md:px-4`}
-                size="sm"
-              >
-                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                <span className="hidden md:inline">Control Center</span>
-              </Button>
-              <Button
-                variant={activeTab === 'stations' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('stations')}
-                className={`${activeTab === 'stations' ? 'btn-gaming' : 'hover:bg-primary/10'} px-2 md:px-4`}
-                size="sm"
-              >
-                <Monitor className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                <span className="hidden md:inline">Stations</span>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowSettings(true)}
-                className="hover:bg-primary/10 px-2 md:px-4"
-                size="sm"
-              >
-                <Palette className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                <span className="hidden md:inline">Theme</span>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowSystemConfig(true)}
-                className="hover:bg-primary/10 px-2 md:px-4"
-                size="sm"
-              >
-                <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                <span className="hidden md:inline">Config</span>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={onLogout}
-                className="hover:bg-error/10 hover:text-error px-2 md:px-4"
-                size="sm"
-              >
-                <LogOut className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                <span className="hidden md:inline">Logout</span>
-              </Button>
+              {/* Other header actions: hidden on small screens, visible from md and up */}
+              <div className="hidden md:flex items-center space-x-1 md:space-x-3">
+                <Button
+                  variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`${activeTab === 'dashboard' ? 'btn-gaming' : 'hover:bg-primary/10'} px-2 md:px-4`}
+                  size="sm"
+                >
+                  <BarChart3 className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                  <span className="hidden md:inline">Control Center</span>
+                </Button>
+                <Button
+                  variant={activeTab === 'stations' ? 'default' : 'ghost'}
+                  onClick={() => setActiveTab('stations')}
+                  className={`${activeTab === 'stations' ? 'btn-gaming' : 'hover:bg-primary/10'} px-2 md:px-4`}
+                  size="sm"
+                >
+                  <Monitor className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                  <span className="hidden md:inline">Stations</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowSettings(true)}
+                  className="hover:bg-primary/10 px-2 md:px-4"
+                  size="sm"
+                >
+                  <Palette className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                  <span className="hidden md:inline">Theme</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setActiveConfigTab(true)}
+                  className="hover:bg-primary/10 px-2 md:px-4"
+                  size="sm"
+                >
+                  <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                  <span className="hidden md:inline">Config</span>
+                </Button>
+              </div>
+
+              {/* Logout stays visible on all screen sizes */}
+              <div className="flex">
+                <Button
+                  variant="ghost"
+                  onClick={onLogout}
+                  className="hover:bg-error/10 hover:text-error px-2 md:px-4"
+                  size="sm"
+                >
+                  <LogOut className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                  <span className="hidden md:inline">Logout</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
-        {/* Dashboard Tab */}
-        {activeTab === 'dashboard' && (
+        {/* Dashboard / Config / Stations Tabs */}
+        {activeConfigTab && (
+          <div className="space-y-6 animate-slide-in-gaming">
+            <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground mb-4">SYSTEM CONFIGURATION</h2>
+            <Card className="card-gaming p-6">
+              <SystemConfig
+                isOpen={true}
+                onClose={() => setActiveConfigTab(false)}
+                onSave={handleSystemConfigSave}
+                currentConfig={systemConfig}
+              />
+            </Card>
+          </div>
+        )}
+
+        {!activeConfigTab && activeTab === 'dashboard' && (
           <div className="space-y-8 animate-slide-in-gaming">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground">
@@ -587,6 +676,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </Button>
 
                 <Button
+                  onClick={() => setActiveConfigTab(true)}
                   className="h-20 bg-gradient-card border-dashed border-2 border-secondary/30 hover:border-secondary hover:shadow-glow-secondary transition-all duration-300"
                   variant="ghost"
                 >
@@ -600,8 +690,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         )}
 
-        {/* Stations Tab */}
-        {activeTab === 'stations' && (
+        {!activeConfigTab && activeTab === 'stations' && (
           <div className="space-y-6 animate-slide-in-gaming">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
               <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground">
@@ -802,14 +891,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       )}
 
       {/* System Configuration Modal */}
-      <SystemConfig
-        isOpen={showSystemConfig}
-        onClose={() => setShowSystemConfig(false)}
-        onSave={handleSystemConfigSave}
-        currentConfig={systemConfig}
-      />
+      {/* SystemConfig modal removed, now handled by tab view above */}
     </div>
   );
-};
+}
 
 export default AdminDashboard;

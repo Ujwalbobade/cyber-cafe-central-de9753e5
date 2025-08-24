@@ -130,3 +130,30 @@ export const addTime = async (sessionId, minutes) => {
 
   return response.json();
 };
+
+// System Configuration APIs
+export const getSystemConfig = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/system-config/latest`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch system configuration');
+  }
+
+  return response.json();
+};
+
+export const saveSystemConfig = async (configData) => {
+  const response = await fetch(`${API_BASE_URL}/admin/system-config`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(configData)
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to save system configuration');
+  }
+
+  return response.json();
+};
