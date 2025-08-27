@@ -106,10 +106,10 @@ export const startSession = async (stationId, sessionData) => {
   return response.json();
 };
 
-export async function endSession(sessionId: number) {
-  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/end`, {
+export async function endSession(sessionId: string | number) {
+  const response = await fetch(`${API_BASE_URL}/admin/sessions/${sessionId}/end`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     throw new Error("Failed to end session");

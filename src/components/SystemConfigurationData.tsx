@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSystemConfig, saveSystemConfig } from "@/services/apis/api"; // 👈 add API functions
+import { useToast } from '@/hooks/use-toast';
 
 export interface SystemConfigurationData {
   hourlyRates: {
@@ -54,6 +55,9 @@ const SystemConfiguration: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newTimeOption, setNewTimeOption] = useState("");
+  const [activeTab, setActiveTab] = useState<string>('rates');
+
+  const { toast } = useToast();
 
   // Load config on mount
   useEffect(() => {
@@ -75,9 +79,9 @@ const SystemConfiguration: React.FC = () => {
     setSaving(true);
     try {
       await saveSystemConfig(config);
-      alert("✅ Configuration saved!");
+      toast({ title: 'Configuration saved', description: 'All settings were saved.' });
     } catch (err) {
-      alert("❌ Failed to save configuration");
+      toast({ title: 'Save failed', description: 'Failed to save configuration', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -90,12 +94,12 @@ const SystemConfiguration: React.FC = () => {
     try {
       await saveSystemConfig(config);
       if (sectionName) {
-        alert(`✅ ${sectionName.toUpperCase()} saved!`);
+        toast({ title: `${sectionName.toUpperCase()} saved`, description: `${sectionName} section saved.` });
       } else {
-        alert("✅ Configuration saved!");
+        toast({ title: 'Configuration saved', description: 'All settings were saved.' });
       }
     } catch (err) {
-      alert("❌ Failed to save configuration");
+      toast({ title: 'Save failed', description: 'Failed to save configuration', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -131,12 +135,21 @@ const SystemConfiguration: React.FC = () => {
   if (!config) return null;
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <div className="flex items-center mb-4">
-        <Settings className="w-6 h-6 mr-2 text-primary" />
-        <h1 className="text-2xl font-gaming text-primary">
-          SYSTEM CONFIGURATION
-        </h1>
+    <div className="max-w-6xl mx-auto p-6 space-y-6 pb-24">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          <Settings className="w-7 h-7 mr-3 text-primary" />
+          <div>
+            <h1 className="text-2xl font-gaming text-primary">SYSTEM CONFIGURATION</h1>
+            <p className="text-sm text-muted-foreground">Manage rates, time options, special passes and custom packs for your cafe.</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <div className={`text-sm font-gaming px-3 py-1 rounded-full ${saving ? 'bg-primary/20 text-primary' : 'bg-muted/10 text-muted-foreground'}`}>
+            {saving ? 'SAVING...' : 'ALL CHANGES DRAFT' }
+          </div>
+          <Button onClick={handleSave} className="hidden md:inline btn-gaming">Save All</Button>
+        </div>
       </div>
 
       {/* Cafe Name + Theme */}
@@ -150,7 +163,7 @@ const SystemConfiguration: React.FC = () => {
           onChange={(e) =>
             setConfig({ ...config, cafeName: e.target.value })
           }
-          className="font-gaming mb-4"
+          className="font-gaming mb-4 w-full"
         />
 
         <Label className="font-gaming text-primary mb-2 block">THEME</Label>
@@ -158,27 +171,27 @@ const SystemConfiguration: React.FC = () => {
           type="text"
           value={config.theme}
           onChange={(e) => setConfig({ ...config, theme: e.target.value })}
-          className="font-gaming"
+          className="font-gaming w-full"
         />
       </Card>
 
-      <Tabs defaultValue="rates" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="space-y-4">
         <div className="md:flex md:items-start md:space-x-6">
-          <TabsList className="mb-6 md:mb-0 md:w-56 md:flex md:flex-col grid grid-cols-5 gap-2">
-            <TabsTrigger value="rates" className="font-gaming text-xs text-center md:text-left py-2">
-              RATES
+          <TabsList className="mb-6 md:mb-0 md:w-56 md:flex md:flex-col flex gap-2 overflow-x-auto whitespace-nowrap">
+            <TabsTrigger value="rates" className={`font-gaming text-xs text-center md:text-left py-2 flex items-center gap-2 ${activeTab === 'rates' ? 'bg-primary/5 rounded-md font-semibold' : ''}`}>
+              <DollarSign className="w-4 h-4" /> <span className="hidden md:inline">RATES</span>
             </TabsTrigger>
-            <TabsTrigger value="time" className="font-gaming text-xs text-center md:text-left py-2">
-              TIME
+            <TabsTrigger value="time" className={`font-gaming text-xs text-center md:text-left py-2 flex items-center gap-2 ${activeTab === 'time' ? 'bg-primary/5 rounded-md font-semibold' : ''}`}>
+              <Clock className="w-4 h-4" /> <span className="hidden md:inline">TIME</span>
             </TabsTrigger>
-            <TabsTrigger value="night" className="font-gaming text-xs text-center md:text-left py-2">
-              NIGHT
+            <TabsTrigger value="night" className={`font-gaming text-xs text-center md:text-left py-2 flex items-center gap-2 ${activeTab === 'night' ? 'bg-primary/5 rounded-md font-semibold' : ''}`}>
+              <Clock className="w-4 h-4" /> <span className="hidden md:inline">NIGHT</span>
             </TabsTrigger>
-            <TabsTrigger value="happy" className="font-gaming text-xs text-center md:text-left py-2">
-              HAPPY HR
+            <TabsTrigger value="happy" className={`font-gaming text-xs text-center md:text-left py-2 flex items-center gap-2 ${activeTab === 'happy' ? 'bg-primary/5 rounded-md font-semibold' : ''}`}>
+              <Clock className="w-4 h-4" /> <span className="hidden md:inline">HAPPY HR</span>
             </TabsTrigger>
-            <TabsTrigger value="packs" className="font-gaming text-xs text-center md:text-left py-2">
-              PACKS
+            <TabsTrigger value="packs" className={`font-gaming text-xs text-center md:text-left py-2 flex items-center gap-2 ${activeTab === 'packs' ? 'bg-primary/5 rounded-md font-semibold' : ''}`}>
+              <Plus className="w-4 h-4" /> <span className="hidden md:inline">PACKS</span>
             </TabsTrigger>
           </TabsList>
 
@@ -187,45 +200,50 @@ const SystemConfiguration: React.FC = () => {
             {/* Hourly Rates */}
             <TabsContent value="rates" className="space-y-4">
               <div className="flex items-start justify-between">
-                <h3 className="text-lg font-gaming font-semibold">Hourly Rates</h3>
-                <Button onClick={() => handleSaveSection('rates')} disabled={saving} className="btn-gaming">
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? 'SAVING...' : 'SAVE RATES'}
-                </Button>
-              </div>
+                  <div>
+                    <h3 className="text-lg font-gaming font-semibold">Hourly Rates</h3>
+                    <p className="text-sm text-muted-foreground">Set per-hour prices for each station type.</p>
+                  </div>
+                  <div className="hidden md:flex">
+                    <Button onClick={() => handleSaveSection('rates')} disabled={saving} className="btn-gaming">
+                      <Save className="w-4 h-4 mr-2" />
+                      {saving ? 'SAVING...' : 'SAVE RATES'}
+                    </Button>
+                  </div>
+                </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Object.entries(config.hourlyRates).map(([type, rate]) => (
               <Card key={type} className="card-gaming p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <Label className="font-gaming text-primary">
-                    {type} HOURLY RATE
-                  </Label>
-                  <DollarSign className="w-4 h-4 text-accent" />
-                </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                    ₹
-                  </span>
-                  <Input
-                    type="number"
-                    value={rate}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        hourlyRates: {
-                          ...config.hourlyRates,
-                          [type]: parseFloat(e.target.value) || 0,
-                        },
-                      })
-                    }
-                    className="pl-8 font-gaming"
-                    placeholder="0.00"
-                  />
+                  <div>
+                    <Label className="font-gaming text-primary">{type} HOURLY RATE</Label>
+                    <div className="text-xs text-muted-foreground">Set the per-hour charge for {type} rigs.</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <DollarSign className="w-4 h-4 text-accent" />
+                    <Input
+                      type="number"
+                      value={rate}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          hourlyRates: {
+                            ...config.hourlyRates,
+                            [type]: parseFloat(e.target.value) || 0,
+                          },
+                        })
+                      }
+                      className="pl-2 w-32 text-right font-gaming"
+                      placeholder="0.00"
+                      min={0}
+                      step={0.5}
+                    />
+                  </div>
                 </div>
               </Card>
             ))}
           </div>
-          <div className="flex justify-end mt-2">
+          <div className="flex justify-end mt-2 hidden md:flex">
             <Button onClick={() => handleSaveSection('rates')} disabled={saving} className="btn-gaming">
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'SAVING...' : 'SAVE RATES'}
@@ -268,7 +286,7 @@ const SystemConfiguration: React.FC = () => {
               </div>
             </div>
           </Card>
-          <div className="flex justify-end mt-2">
+          <div className="flex justify-end mt-2 hidden md:flex">
             <Button onClick={() => handleSaveSection('night pass')} disabled={saving} className="btn-gaming">
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'SAVING...' : 'SAVE NIGHT'}
@@ -298,7 +316,7 @@ const SystemConfiguration: React.FC = () => {
               ))}
             </div>
           </Card>
-          <div className="flex justify-end mt-2">
+          <div className="flex justify-end mt-2 hidden md:flex">
             <Button onClick={() => handleSaveSection('happy hours')} disabled={saving} className="btn-gaming">
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'SAVING...' : 'SAVE HAPPY HR'}
@@ -328,7 +346,7 @@ const SystemConfiguration: React.FC = () => {
               ))}
             </div>
           </Card>
-          <div className="flex justify-end mt-2">
+          <div className="flex justify-end mt-2 hidden md:flex">
             <Button onClick={() => handleSaveSection('packs')} disabled={saving} className="btn-gaming">
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'SAVING...' : 'SAVE PACKS'}
@@ -352,7 +370,7 @@ const SystemConfiguration: React.FC = () => {
                 value={newTimeOption}
                 onChange={(e) => setNewTimeOption(e.target.value)}
                 placeholder="Minutes (e.g., 15)"
-                className="font-gaming"
+                className="font-gaming w-full"
               />
               <Button onClick={addTimeOption} className="btn-gaming px-3">
                 <Plus className="w-4 h-4" />
@@ -372,7 +390,7 @@ const SystemConfiguration: React.FC = () => {
               ))}
             </div>
           </Card>
-          <div className="flex justify-end mt-2">
+          <div className="flex justify-end mt-2 hidden md:flex">
             <Button onClick={() => handleSaveSection('time options')} disabled={saving} className="btn-gaming">
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'SAVING...' : 'SAVE TIME'}
@@ -382,6 +400,15 @@ const SystemConfiguration: React.FC = () => {
           </div>
         </div>
       </Tabs>
+
+      {/* Mobile sticky save bar */}
+      <div className="fixed bottom-4 left-4 right-4 z-50 md:hidden">
+        <div className="bg-card/90 backdrop-blur-md rounded-lg p-3 shadow-lg flex justify-end">
+          <Button onClick={() => handleSaveSection(activeTab)} className="btn-gaming w-full" disabled={saving}>
+            <Save className="w-4 h-4 mr-2" /> {saving ? 'SAVING...' : 'SAVE'}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

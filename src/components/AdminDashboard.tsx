@@ -73,7 +73,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const fetchStations = async () => {
       try {
         const data = await getStations();
-        setStations(data); // API returns array of stations
+        // Normalize timeRemaining to minutes if backend returns seconds
+        const normalized = (data || []).map((s: any) => {
+          if (s.currentSession && typeof s.currentSession.timeRemaining === 'number') {
+            let tr = Number(s.currentSession.timeRemaining) || 0;
+            if (tr > 1000) tr = Math.ceil(tr / 60);
+            return { ...s, currentSession: { ...s.currentSession, timeRemaining: tr } };
+          }
+          return s;
+        });
+        setStations(normalized); // API returns array of stations
       } catch (error) {
         toast({
           title: 'Error',
@@ -92,6 +101,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [stationView, setStationView] = useState<'list' | 'grid'>('list');
   const [showAddStation, setShowAddStation] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [showStationPopup, setShowStationPopup] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
@@ -281,6 +291,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         case "start-session":
           const session = await startSession(stationId, data); // backend creates session
+          // Normalize timeRemaining: backend may return seconds — convert to minutes when necessary
+          let tr = Number(session.timeRemaining) || 0;
+          if (tr > 1000) tr = Math.ceil(tr / 60); // assume seconds
           setStations(prev =>
             prev.map(station =>
               station.id === stationId
@@ -291,7 +304,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     id: session.id,
                     customerName: session.customerName,
                     startTime: session.startTime,
-                    timeRemaining: session.timeRemaining,
+                    timeRemaining: tr,
                   },
                 }
                 : station
@@ -332,11 +345,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
             setStations(prev =>
               prev.map(station =>
-                station.currentSession?.id === data.sessionId
+                String(station.currentSession?.id) === String(data.sessionId)
                   ? { ...station, status: "AVAILABLE", currentSession: undefined }
                   : station
               )
             );
+
+            // If the popup was open for this station, clear it so UI updates
+            setSelectedStation(prev => (prev && String(prev.currentSession?.id) === String(data.sessionId) ? { ...prev, status: 'AVAILABLE', currentSession: undefined } : prev));
 
             toast({
               title: "Session Ended",
@@ -394,14 +410,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
+    <div className="min-h-screen bg-gradient-hero relative overflow-hidden">
+      {/* Decorative background glow */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-40 -left-32 w-96 h-96 bg-gradient-to-tr from-primary/30 via-transparent to-transparent rounded-full blur-3xl opacity-60" />
+        <div className="absolute -bottom-40 -right-32 w-96 h-96 bg-gradient-to-bl from-accent/25 via-transparent to-transparent rounded-full blur-3xl opacity-50" />
+      </div>
       {/* Mobile Navbar with collapsible menu */}
       <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
-        <Collapsible>
+        <Collapsible open={mobileNavOpen} onOpenChange={(open) => setMobileNavOpen(open)}>
           <div className="flex justify-end">
             <CollapsibleTrigger asChild>
-              <Button variant="default" size="icon" className="rounded-full shadow-lg">
-                <Cog className="w-5 h-5" />
+              <Button variant="default" size="icon" className="rounded-full shadow-lg w-14 h-14 flex items-center justify-center ring-2 ring-primary/20 bg-card/80 backdrop-blur-md">
+                <Shield className="w-6 h-6 text-primary-foreground" />
               </Button>
             </CollapsibleTrigger>
           </div>
@@ -409,30 +430,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <div className="mt-3 bg-card/90 backdrop-blur-md rounded-lg p-2 shadow-lg flex justify-around">
               <Button
                 variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('dashboard')}
+                onClick={() => { setActiveTab('dashboard'); setMobileNavOpen(false); }}
+                aria-label="Dashboard"
+                title="Dashboard"
                 className={`flex-1 mx-1 ${activeTab === 'dashboard' ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
                 size="sm"
               >
-                <BarChart3 className="w-5 h-5 mx-auto" />
-                <span className="block text-xs">Dashboard</span>
+                <BarChart3 className="w-6 h-6 mx-auto" />
               </Button>
               <Button
                 variant={activeTab === 'stations' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('stations')}
+                onClick={() => { setActiveTab('stations'); setMobileNavOpen(false); }}
+                aria-label="Stations"
+                title="Stations"
                 className={`flex-1 mx-1 ${activeTab === 'stations' ? 'btn-gaming' : 'hover:bg-primary/10'} font-gaming`}
                 size="sm"
               >
-                <Monitor className="w-5 h-5 mx-auto" />
-                <span className="block text-xs">Stations</span>
+                <Monitor className="w-6 h-6 mx-auto" />
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => navigate('/settings')}
+                onClick={() => { setShowSettings(true); setMobileNavOpen(false); }}
+                aria-label="Theme"
+                title="Theme"
                 className="flex-1 mx-1 hover:bg-primary/10 font-gaming"
                 size="sm"
               >
-                <Cog className="w-5 h-5 mx-auto" />
-                <span className="block text-xs">Settings</span>
+                <Palette className="w-6 h-6 mx-auto" />
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => { navigate('/settings'); setMobileNavOpen(false); }}
+                aria-label="Settings"
+                title="Settings"
+                className="flex-1 mx-1 hover:bg-primary/10 font-gaming"
+                size="sm"
+              >
+                <Cog className="w-6 h-6 mx-auto" />
               </Button>
             </div>
           </CollapsibleContent>
@@ -444,13 +478,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow-primary">
+                <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow-primary ring-2 ring-primary/20 animate-pulse">
                   <Shield className="w-6 h-6 text-primary-foreground" />
                 </div>
                 <div>
                   <h1 className="text-xl md:text-2xl font-gaming font-bold bg-gradient-gaming bg-clip-text text-transparent">
                     {cafeName}
                   </h1>
+                  <p className="text-xs md:text-sm text-muted-foreground mt-0.5 tracking-wider font-semibold">
+                    Cyber Lounge Control • Manage rigs, sessions & settings
+                  </p>
                 </div>
               </div>
 
@@ -579,8 +616,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Button
                   onClick={() => setShowAddStation(true)}
-                  className="h-20 bg-gradient-card border-dashed border-2 border-primary/30 hover:border-primary hover:shadow-glow-primary transition-all duration-300"
+                  className="h-20 bg-gradient-card border-dashed border-2 border-primary/30 hover:border-primary hover:shadow-glow-primary transform transition-transform duration-300 hover:scale-105"
                   variant="ghost"
+                  aria-label="Add new rig"
                 >
                   <div className="text-center">
                     <Plus className="w-8 h-8 mx-auto mb-2 text-primary" />
@@ -589,8 +627,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </Button>
 
                 <Button
-                  className="h-20 bg-gradient-card border-dashed border-2 border-accent/30 hover:border-accent hover:shadow-glow-accent transition-all duration-300"
+                  className="h-20 bg-gradient-card border-dashed border-2 border-accent/30 hover:border-accent hover:shadow-glow-accent transform transition-transform duration-300 hover:scale-105"
                   variant="ghost"
+                  aria-label="Open analytics hub"
                 >
                   <div className="text-center">
                     <BarChart3 className="w-8 h-8 mx-auto mb-2 text-accent" />
@@ -600,8 +639,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
                 <Button
                   onClick={() => navigate('/settings')}
-                  className="h-20 bg-gradient-card border-dashed border-2 border-secondary/30 hover:border-secondary hover:shadow-glow-secondary transition-all duration-300"
+                  className="h-20 bg-gradient-card border-dashed border-2 border-secondary/30 hover:border-secondary hover:shadow-glow-secondary transform transition-transform duration-300 hover:scale-105"
                   variant="ghost"
+                  aria-label="Open system configuration"
                 >
                   <div className="text-center">
                     <Settings className="w-8 h-8 mx-auto mb-2 text-secondary" />
