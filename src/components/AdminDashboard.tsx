@@ -16,6 +16,7 @@ import {
   Edit3,
   Grid3X3,
   List,
+  Table,
   Cog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import StationCard from './StationCard';
 import StatsCard from './StatsCard';
 import AddStationModal from './AddStationModal';
 import StationGridView from './StationGridView';
+import StationTableView from './StationTableView';
 import StationPopup from './StationPopup';
 import {
   getStations,
@@ -89,23 +91,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }, []);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stations'>('dashboard');
   const [stationFilter, setStationFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [stationView, setStationView] = useState<'list' | 'grid'>('list');
+  const [stationView, setStationView] = useState<'list' | 'grid' | 'table'>('list');
   const [showAddStation, setShowAddStation] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [showStationPopup, setShowStationPopup] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
-  const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>(() => {
-    return localStorage.getItem('gaming-cafe-theme') as 'cyber-blue' | 'neon-purple' || 'cyber-blue';
-  });
+  
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
   });
 
   useEffect(() => {
-    // Apply theme to document
-    document.documentElement.setAttribute('data-theme', currentTheme);
-
     // Simulate WebSocket connection
     const interval = setInterval(() => {
       setStations(prev => prev.map(station => {
@@ -125,7 +121,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
 
     return () => clearInterval(interval);
-  }, [currentTheme]);
+  }, []);
 
   // Calculate dashboard statistics
   const stats = {
@@ -491,15 +487,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </Button>
                 <Button
                   variant="ghost"
-                  onClick={() => setShowSettings(true)}
-                  className="hover:bg-primary/10 px-2 md:px-4"
-                  size="sm"
-                >
-                  <Palette className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                  <span className="hidden md:inline">Theme</span>
-                </Button>
-                <Button
-                  variant="ghost"
                   onClick={() => navigate('/settings')}
                   className="hover:bg-primary/10 px-2 md:px-4"
                   size="sm"
@@ -680,6 +667,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   >
                     <Grid3X3 className="w-4 h-4" />
                   </Button>
+                  <Button
+                    variant={stationView === 'table' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStationView('table')}
+                    className={`font-gaming text-xs px-3 ${stationView === 'table' ? 'btn-gaming' : 'hover:bg-primary/10'}`}
+                  >
+                    <Table className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -707,7 +702,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </div>
                   ))}
               </div>
-            ) : (
+            ) : stationView === 'grid' ? (
               <Card className="card-gaming">
                 <StationGridView 
                   stations={stations.filter(station => {
@@ -717,6 +712,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   })}
                   onStationClick={handleStationClick}
                   onStationAction={handleStationAction}
+                />
+              </Card>
+            ) : (
+              <Card className="card-gaming p-6">
+                <StationTableView 
+                  stations={stations.filter(station => {
+                    if (stationFilter === 'active') return station.status === 'OCCUPIED';
+                    if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
+                    return true;
+                  })}
+                  onStationClick={handleStationClick}
+                  onStationAction={handleStationAction}
+                  onDelete={handleDeleteStation}
                 />
               </Card>
             )}
@@ -740,80 +748,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         onAction={handleStationAction}
         onDelete={() => selectedStation && handleDeleteStation(selectedStation.id)}
       />
-
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="card-gaming max-w-md w-full p-6">
-            <h2 className="text-xl font-gaming font-bold text-foreground mb-4">
-              CAFE SETTINGS
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-gaming text-muted-foreground mb-2">
-                  CAFE NAME
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={cafeName}
-                    onChange={(e) => setCafeName(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-input/50 border border-primary/30 rounded-lg text-foreground font-gaming text-sm"
-                    placeholder="Enter cafe name"
-                  />
-                  <Button
-                    onClick={() => setCafeName(cafeName)}
-                    variant="outline"
-                    size="sm"
-                    className="font-gaming"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-gaming text-muted-foreground mb-2">
-                  COLOR THEME
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant={currentTheme === 'cyber-blue' ? 'default' : 'outline'}
-                    onClick={() => setCurrentTheme('cyber-blue')}
-                    className={`font-gaming ${currentTheme === 'cyber-blue' ? 'btn-gaming' : ''}`}
-                  >
-                    Cyber Blue
-                  </Button>
-                  <Button
-                    variant={currentTheme === 'neon-purple' ? 'default' : 'outline'}
-                    onClick={() => setCurrentTheme('neon-purple')}
-                    className={`font-gaming ${currentTheme === 'neon-purple' ? 'btn-gaming' : ''}`}
-                  >
-                    Neon Purple
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <Button
-                onClick={() => {
-                  localStorage.setItem('cafe-name', cafeName);
-                  localStorage.setItem('gaming-cafe-theme', currentTheme);
-                  setShowSettings(false);
-                }}
-                className="flex-1 btn-gaming font-gaming"
-              >
-                SAVE SETTINGS
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* System Configuration Modal */}
-      {/* SystemConfig modal removed, now handled by dedicated settings page */}
     </div>
   );
 }
