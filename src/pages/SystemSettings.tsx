@@ -25,11 +25,6 @@ import { toast } from 'sonner';
 
 export interface SystemConfiguration {
   hourlyRates: {
-    PC: number;
-    PS5: number;
-    PS4: number;
-  };
-  customStations: {
     [stationType: string]: number;
   };
   timeOptions: number[]; // in minutes: [10, 15, 30, 60, 120, 180]
@@ -59,7 +54,6 @@ export interface SystemConfiguration {
 
 const defaultConfig: SystemConfiguration = {
   hourlyRates: { PC: 100, PS5: 150, PS4: 120 },
-  customStations: {},
   timeOptions: [10, 15, 30, 60, 120, 180],
   nightPass: {
     enabled: false,
@@ -172,8 +166,8 @@ const SystemSettings: React.FC = () => {
     if (newCustomStation.type.trim() && newCustomStation.rate > 0) {
       setConfig(prev => ({
         ...prev,
-        customStations: {
-          ...prev.customStations,
+        hourlyRates: {
+          ...prev.hourlyRates,
           [newCustomStation.type]: newCustomStation.rate
         }
       }));
@@ -181,12 +175,15 @@ const SystemSettings: React.FC = () => {
     }
   };
 
-  const removeCustomStation = (stationType: string) => {
+  const removeStationType = (stationType: string) => {
+    // Don't allow removing default station types
+    if (['PC', 'PS5', 'PS4'].includes(stationType)) return;
+    
     setConfig(prev => {
-      const { [stationType]: removed, ...rest } = prev.customStations;
+      const { [stationType]: removed, ...rest } = prev.hourlyRates;
       return {
         ...prev,
-        customStations: rest
+        hourlyRates: rest
       };
     });
   };
@@ -256,38 +253,10 @@ const SystemSettings: React.FC = () => {
           {/* Hourly Rates */}
           <TabsContent value="rates" className="space-y-6">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4 text-foreground">Default Station Hourly Rates</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {Object.entries(config.hourlyRates).map(([type, rate]) => (
-                  <div key={type} className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">{type} Station</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
-                      <Input
-                        type="number"
-                        value={rate}
-                        onChange={(e) => setConfig(prev => ({
-                          ...prev,
-                          hourlyRates: {
-                            ...prev.hourlyRates,
-                            [type]: parseFloat(e.target.value) || 0
-                          }
-                        }))}
-                        className="pl-8"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">Rate per hour</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4 text-foreground">Custom Station Types</h3>
+              <h3 className="text-lg font-semibold mb-4 text-foreground">Station Hourly Rates</h3>
               
               <div className="space-y-4">
-                {Object.entries(config.customStations).map(([type, rate]) => (
+                {Object.entries(config.hourlyRates).map(([type, rate]) => (
                   <div key={type} className="p-4 border border-border rounded-lg bg-muted/50">
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
@@ -301,8 +270,8 @@ const SystemSettings: React.FC = () => {
                                 value={rate}
                                 onChange={(e) => setConfig(prev => ({
                                   ...prev,
-                                  customStations: {
-                                    ...prev.customStations,
+                                  hourlyRates: {
+                                    ...prev.hourlyRates,
                                     [type]: parseFloat(e.target.value) || 0
                                   }
                                 }))}
@@ -314,14 +283,16 @@ const SystemSettings: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <Button
-                        onClick={() => removeCustomStation(type)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {!['PC', 'PS5', 'PS4'].includes(type) && (
+                        <Button
+                          onClick={() => removeStationType(type)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -347,7 +318,7 @@ const SystemSettings: React.FC = () => {
                   </div>
                   <Button onClick={addCustomStation} className="w-full">
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Custom Station Type
+                    Add New Station Type
                   </Button>
                 </div>
               </div>
