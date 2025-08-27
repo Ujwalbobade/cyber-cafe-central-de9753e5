@@ -10,7 +10,9 @@ import {
   Trash2,
   Save,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Palette,
+  Monitor
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,9 +25,7 @@ import { toast } from 'sonner';
 
 export interface SystemConfiguration {
   hourlyRates: {
-    PC: number;
-    PS5: number;
-    PS4: number;
+    [stationType: string]: number;
   };
   timeOptions: number[]; // in minutes: [10, 15, 30, 60, 120, 180]
   nightPass: {
@@ -68,6 +68,12 @@ const defaultConfig: SystemConfiguration = {
 const SystemSettings: React.FC = () => {
   const navigate = useNavigate();
   const [config, setConfig] = useState<SystemConfiguration>(defaultConfig);
+  const [currentTheme, setCurrentTheme] = useState<'cyber-blue' | 'neon-purple'>(() => {
+    return localStorage.getItem('gaming-cafe-theme') as 'cyber-blue' | 'neon-purple' || 'cyber-blue';
+  });
+  const [cafeName, setCafeName] = useState(() => {
+    return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
+  });
   const [newTimeOption, setNewTimeOption] = useState('');
   const [newCustomPack, setNewCustomPack] = useState({
     name: '',
@@ -82,10 +88,16 @@ const SystemSettings: React.FC = () => {
     discountPercent: 20,
     days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
   });
+  const [newCustomStation, setNewCustomStation] = useState({
+    type: '',
+    rate: 100
+  });
 
   const handleSave = () => {
     // Save configuration logic here
     localStorage.setItem('systemConfig', JSON.stringify(config));
+    localStorage.setItem('cafe-name', cafeName);
+    localStorage.setItem('gaming-cafe-theme', currentTheme);
     toast.success('System configuration saved successfully!');
   };
 
@@ -150,6 +162,32 @@ const SystemSettings: React.FC = () => {
     }));
   };
 
+  const addCustomStation = () => {
+    if (newCustomStation.type.trim() && newCustomStation.rate > 0) {
+      setConfig(prev => ({
+        ...prev,
+        hourlyRates: {
+          ...prev.hourlyRates,
+          [newCustomStation.type]: newCustomStation.rate
+        }
+      }));
+      setNewCustomStation({ type: '', rate: 100 });
+    }
+  };
+
+  const removeStationType = (stationType: string) => {
+    // Don't allow removing default station types
+    if (['PC', 'PS5', 'PS4'].includes(stationType)) return;
+    
+    setConfig(prev => {
+      const { [stationType]: removed, ...rest } = prev.hourlyRates;
+      return {
+        ...prev,
+        hourlyRates: rest
+      };
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -185,14 +223,14 @@ const SystemSettings: React.FC = () => {
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="rates" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-muted">
+          <TabsList className="grid w-full grid-cols-6 bg-muted">
             <TabsTrigger value="rates" className="data-[state=active]:bg-background">
               <DollarSign className="w-4 h-4 mr-2" />
-              Hourly Rates
+              Rates
             </TabsTrigger>
             <TabsTrigger value="time" className="data-[state=active]:bg-background">
               <Clock className="w-4 h-4 mr-2" />
-              Time Options
+              Time
             </TabsTrigger>
             <TabsTrigger value="night" className="data-[state=active]:bg-background">
               <Moon className="w-4 h-4 mr-2" />
@@ -204,7 +242,11 @@ const SystemSettings: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="packs" className="data-[state=active]:bg-background">
               <Package className="w-4 h-4 mr-2" />
-              Custom Packs
+              Packs
+            </TabsTrigger>
+            <TabsTrigger value="theme" className="data-[state=active]:bg-background">
+              <Palette className="w-4 h-4 mr-2" />
+              Theme
             </TabsTrigger>
           </TabsList>
 
@@ -212,29 +254,73 @@ const SystemSettings: React.FC = () => {
           <TabsContent value="rates" className="space-y-6">
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4 text-foreground">Station Hourly Rates</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="space-y-4">
                 {Object.entries(config.hourlyRates).map(([type, rate]) => (
-                  <div key={type} className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">{type} Station</Label>
+                  <div key={type} className="p-4 border border-border rounded-lg bg-muted/50">
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div className="space-y-2 flex-1">
+                            <Label className="text-sm font-medium text-foreground">{type} Station</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+                              <Input
+                                type="number"
+                                value={rate}
+                                onChange={(e) => setConfig(prev => ({
+                                  ...prev,
+                                  hourlyRates: {
+                                    ...prev.hourlyRates,
+                                    [type]: parseFloat(e.target.value) || 0
+                                  }
+                                }))}
+                                className="pl-8"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">Rate per hour</p>
+                          </div>
+                        </div>
+                      </div>
+                      {!['PC', 'PS5', 'PS4'].includes(type) && (
+                        <Button
+                          onClick={() => removeStationType(type)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="border-t border-border pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                    <Input
+                      value={newCustomStation.type}
+                      onChange={(e) => setNewCustomStation(prev => ({ ...prev, type: e.target.value }))}
+                      placeholder="Station Type (e.g., VR, XBOX)"
+                      className="flex-1"
+                    />
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
                       <Input
                         type="number"
-                        value={rate}
-                        onChange={(e) => setConfig(prev => ({
-                          ...prev,
-                          hourlyRates: {
-                            ...prev.hourlyRates,
-                            [type]: parseFloat(e.target.value) || 0
-                          }
-                        }))}
+                        value={newCustomStation.rate}
+                        onChange={(e) => setNewCustomStation(prev => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))}
                         className="pl-8"
-                        placeholder="0.00"
+                        placeholder="Rate per hour"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">Rate per hour</p>
                   </div>
-                ))}
+                  <Button onClick={addCustomStation} className="w-full">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Station Type
+                  </Button>
+                </div>
               </div>
             </Card>
           </TabsContent>
@@ -475,6 +561,74 @@ const SystemSettings: React.FC = () => {
               </div>
             </Card>
           </TabsContent>
+          {/* Theme Configuration */}
+          <TabsContent value="theme" className="space-y-6">
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4 text-foreground">Theme & Branding</h3>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-foreground">Cafe Name</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={cafeName}
+                      onChange={(e) => setCafeName(e.target.value)}
+                      placeholder="Enter cafe name"
+                      className="flex-1"
+                    />
+                    <Button variant="outline" size="sm">
+                      <Monitor className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Display name for your gaming center</p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-foreground">Color Theme</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Button
+                      variant={currentTheme === 'cyber-blue' ? 'default' : 'outline'}
+                      onClick={() => setCurrentTheme('cyber-blue')}
+                      className={`h-16 flex flex-col items-center justify-center space-y-2 ${
+                        currentTheme === 'cyber-blue' ? 'ring-2 ring-primary' : ''
+                      }`}
+                    >
+                      <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
+                      <span className="font-gaming text-sm">Cyber Blue</span>
+                    </Button>
+                    <Button
+                      variant={currentTheme === 'neon-purple' ? 'default' : 'outline'}
+                      onClick={() => setCurrentTheme('neon-purple')}
+                      className={`h-16 flex flex-col items-center justify-center space-y-2 ${
+                        currentTheme === 'neon-purple' ? 'ring-2 ring-primary' : ''
+                      }`}
+                    >
+                      <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                      <span className="font-gaming text-sm">Neon Purple</span>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Choose the color scheme for your admin interface</p>
+                </div>
+
+                <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                  <h4 className="text-sm font-medium text-foreground mb-2">Theme Preview</h4>
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <div className="w-3 h-3 bg-primary rounded-full"></div>
+                    <span>Primary: Gaming interface elements</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
+                    <div className="w-3 h-3 bg-accent rounded-full"></div>
+                    <span>Accent: Available stations and success states</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
+                    <div className="w-3 h-3 bg-secondary rounded-full"></div>
+                    <span>Secondary: Buttons and interactive elements</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+
         </Tabs>
       </div>
     </div>
