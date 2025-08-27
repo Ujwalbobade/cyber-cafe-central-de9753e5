@@ -29,6 +29,9 @@ export interface SystemConfiguration {
     PS5: number;
     PS4: number;
   };
+  customStations: {
+    [stationType: string]: number;
+  };
   timeOptions: number[]; // in minutes: [10, 15, 30, 60, 120, 180]
   nightPass: {
     enabled: boolean;
@@ -56,6 +59,7 @@ export interface SystemConfiguration {
 
 const defaultConfig: SystemConfiguration = {
   hourlyRates: { PC: 100, PS5: 150, PS4: 120 },
+  customStations: {},
   timeOptions: [10, 15, 30, 60, 120, 180],
   nightPass: {
     enabled: false,
@@ -89,6 +93,10 @@ const SystemSettings: React.FC = () => {
     endTime: '18:00',
     discountPercent: 20,
     days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+  });
+  const [newCustomStation, setNewCustomStation] = useState({
+    type: '',
+    rate: 100
   });
 
   const handleSave = () => {
@@ -160,6 +168,29 @@ const SystemSettings: React.FC = () => {
     }));
   };
 
+  const addCustomStation = () => {
+    if (newCustomStation.type.trim() && newCustomStation.rate > 0) {
+      setConfig(prev => ({
+        ...prev,
+        customStations: {
+          ...prev.customStations,
+          [newCustomStation.type]: newCustomStation.rate
+        }
+      }));
+      setNewCustomStation({ type: '', rate: 100 });
+    }
+  };
+
+  const removeCustomStation = (stationType: string) => {
+    setConfig(prev => {
+      const { [stationType]: removed, ...rest } = prev.customStations;
+      return {
+        ...prev,
+        customStations: rest
+      };
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -225,7 +256,7 @@ const SystemSettings: React.FC = () => {
           {/* Hourly Rates */}
           <TabsContent value="rates" className="space-y-6">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4 text-foreground">Station Hourly Rates</h3>
+              <h3 className="text-lg font-semibold mb-4 text-foreground">Default Station Hourly Rates</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {Object.entries(config.hourlyRates).map(([type, rate]) => (
                   <div key={type} className="space-y-2">
@@ -249,6 +280,76 @@ const SystemSettings: React.FC = () => {
                     <p className="text-xs text-muted-foreground">Rate per hour</p>
                   </div>
                 ))}
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4 text-foreground">Custom Station Types</h3>
+              
+              <div className="space-y-4">
+                {Object.entries(config.customStations).map(([type, rate]) => (
+                  <div key={type} className="p-4 border border-border rounded-lg bg-muted/50">
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div className="space-y-2 flex-1">
+                            <Label className="text-sm font-medium text-foreground">{type} Station</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+                              <Input
+                                type="number"
+                                value={rate}
+                                onChange={(e) => setConfig(prev => ({
+                                  ...prev,
+                                  customStations: {
+                                    ...prev.customStations,
+                                    [type]: parseFloat(e.target.value) || 0
+                                  }
+                                }))}
+                                className="pl-8"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">Rate per hour</p>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => removeCustomStation(type)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="border-t border-border pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                    <Input
+                      value={newCustomStation.type}
+                      onChange={(e) => setNewCustomStation(prev => ({ ...prev, type: e.target.value }))}
+                      placeholder="Station Type (e.g., VR, XBOX)"
+                      className="flex-1"
+                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+                      <Input
+                        type="number"
+                        value={newCustomStation.rate}
+                        onChange={(e) => setNewCustomStation(prev => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))}
+                        className="pl-8"
+                        placeholder="Rate per hour"
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={addCustomStation} className="w-full">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Custom Station Type
+                  </Button>
+                </div>
               </div>
             </Card>
           </TabsContent>
