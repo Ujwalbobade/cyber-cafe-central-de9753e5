@@ -1,12 +1,13 @@
-import React from 'react';
+import React,{ useEffect } from 'react';
 import { Monitor, Gamepad2, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import StationWebSocketService from "../../services/Websockets";
 
 interface Station {
   id: string;
   name: string;
   type: 'PC' | 'PS5' | 'PS4';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE'| 'OFFLINE';
   hourlyRate: number;
   ipAddress?: string;
   specifications: string;
@@ -24,20 +25,36 @@ interface StationGridViewProps {
   stations: Station[];
   onStationClick: (station: Station) => void;
   onStationAction: (stationId: string, action: string, data?: any) => void;
+  updateStationStatus: (stationId: string, status: Station["status"]) => void;
 }
 
-const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationClick, onStationAction }) => {
-  const getStationColor = (station: Station) => {
-    if (station.isLocked) return 'bg-warning/20 border-warning shadow-glow-warning';
+const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationClick, onStationAction , updateStationStatus}) => {
+  const stationWS = new StationWebSocketService();
+
+  useEffect(() => {
+    stationWS.onMessage = (data) => {
+      if (data.type === "STATION_STATUS") {
+        // Example payload: { type: "STATION_STATUS", stationId: "station-123", status: "OFFLINE" }
+        updateStationStatus(data.stationId, data.status);
+      }
+    };
+// subscribe as admin
+    return () => stationWS.disconnect();
+  }, [stationWS, updateStationStatus]);
+
+   const getStationColor = (station: Station) => {
+    if (station.isLocked) return "bg-warning/20 border-warning shadow-glow-warning";
     switch (station.status) {
-      case 'AVAILABLE':
-        return 'bg-accent/20 border-accent shadow-glow-accent hover:shadow-glow-accent/80';
-      case 'OCCUPIED':
-        return 'bg-error/20 border-error shadow-glow-error';
-      case 'MAINTENANCE':
-        return 'bg-secondary/20 border-secondary shadow-glow-secondary';
+      case "AVAILABLE":
+        return "bg-accent/20 border-accent shadow-glow-accent hover:shadow-glow-accent/80";
+      case "OCCUPIED":
+        return "bg-error/20 border-error shadow-glow-error";
+      case "MAINTENANCE":
+        return "bg-secondary/20 border-secondary shadow-glow-secondary";
+      case "OFFLINE":
+        return "bg-muted/40 border-muted text-muted-foreground";
       default:
-        return 'bg-muted/20 border-muted';
+        return "bg-muted/20 border-muted";
     }
   };
 

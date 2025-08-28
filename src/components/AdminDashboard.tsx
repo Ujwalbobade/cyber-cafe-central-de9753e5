@@ -25,12 +25,16 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import StationCard from './StationCard';
+import StationCard from './Station/StationCard';
 import StatsCard from './StatsCard';
-import AddStationModal from './AddStationModal';
-import StationGridView from './StationGridView';
-import StationTableView from './StationTableView';
-import StationPopup from './StationPopup';
+import AddStationModal from './Station/AddStationModal';
+import StationGridView from './Station/StationGridView';
+import StationTableView from './Station/StationTableView';
+import StationPopup from './Station/StationPopup';
+import WebSocketService from '../services/Websockets';
+
+// Types
+export type ConnectionState = "connected" | "disconnected" | "error";
 import {
   getStations,
   createStation,
@@ -69,6 +73,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const wsService = new WebSocketService();
+
+  useEffect(() => {
+    wsService.onConnectionChange = (state) => {
+      setConnectionStatus(state);
+    };
+
+    wsService.onMessage = (data) => {
+      if (data.type === "STATION_UPDATE" && data.station) {
+        setStations((prev) =>
+          prev.map((s) => (s.id === data.station.id ? { ...s, ...data.station } : s))
+        );
+      }
+
+      if (data.type === "STATION_LIST" && Array.isArray(data.stations)) {
+        setStations(data.stations);
+      }
+    };
+
+    wsService.connect();
+
+    return () => {
+      wsService.disconnect();
+    };
+  }, [setStations]);
 
     // Using initialConfig defined above
   useEffect(() => {
@@ -98,6 +128,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     fetchStations();
   }, []);
+
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stations'>('dashboard');
   const [stationFilter, setStationFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [stationView, setStationView] = useState<'list' | 'grid' | 'table'>('list');
@@ -110,28 +142,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
   });
-
-  useEffect(() => {
-    // Simulate WebSocket connection
-    const interval = setInterval(() => {
-      setStations(prev => prev.map(station => {
-        if (station.currentSession && station.status === 'OCCUPIED') {
-          const timeRemaining = station.currentSession.timeRemaining - 1;
-          return {
-            ...station,
-            currentSession: {
-              ...station.currentSession,
-              timeRemaining: Math.max(0, timeRemaining)
-            }
-          };
-        }
-        return station;
-      }));
-    }, 60000); // Update every minute
-
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Calculate dashboard statistics
   const stats = {
@@ -191,59 +201,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       });
     }
   };
-  /*
-    const handleStationAction = (stationId: string, action: string, data?: any) => {
-      setStations(prev => prev.map(station => {
-        if (station.id === stationId) {
-          switch (action) {
-            case 'lock':
-              return { ...station, isLocked: true };
-            case 'unlock':
-              return { ...station, isLocked: false };
-            case 'start-session':
-              return {
-                ...station,
-                status: 'OCCUPIED' as const,
-                currentSession: {
-                  id: `session-${Date.now()}`,
-                  customerName: data.customerName,
-                  startTime: new Date().toISOString(),
-                  timeRemaining: data.timeMinutes,
-                }
-              };
-            case 'end-session':
-              return {
-                ...station,
-                status: 'AVAILABLE' as const,
-                currentSession: undefined,
-              };
-            case 'add-time':
-              return station.currentSession ? {
-                ...station,
-                currentSession: {
-                  ...station.currentSession,
-                  timeRemaining: station.currentSession.timeRemaining + data.minutes,
-                }
-              } : station;
-            default:
-              return station;
-          }
-        }
-        return station;
-      }));
-  
-      if (action === 'start-session') {
-        toast({
-          title: "Session Started",
-          description: `Gaming session initiated for ${data.customerName}`,
-        });
-      } else if (action === 'end-session') {
-        toast({
-          title: "Session Ended",
-          description: "Gaming session has been terminated successfully.",
-        });
-      }
-    };*/
 
   const handleStationAction = async (
     stationId: string,

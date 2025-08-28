@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import StationCard, { Station } from "../components/StationCard";
+import StationCard, { Station } from "../components/Station/StationCard";
 import WebSocketService from "@/services/Websockets";
 
 const StationList: React.FC = () => {
