@@ -21,6 +21,7 @@ interface Station {
   specifications: string;
   isLocked: boolean;
   lockedFor?: string;
+  handRaised?: boolean;
   currentSession?: {
     id: string;
     customerName: string;
@@ -33,7 +34,7 @@ interface StationTableViewProps {
   stations: Station[];
   onStationClick: (station: Station) => void;
   onStationAction: (stationId: string, action: string, data?: any) => void;
-  onDelete: (stationId: string) => void;
+  onDelete: (station: Station) => void;
 }
 
 const StationTableView: React.FC<StationTableViewProps> = ({ 
@@ -198,7 +199,7 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(station.id);
+                      onDelete(station);
                     }}
                     className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
                   >

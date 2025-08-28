@@ -29,6 +29,7 @@ export interface Station {
   specifications: string;
   isLocked: boolean;
   lockedFor?: string;
+  handRaised?: boolean;
   currentSession?: {
     id: string;
     customerName: string;

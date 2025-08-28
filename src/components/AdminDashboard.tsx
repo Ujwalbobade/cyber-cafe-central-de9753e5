@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
+import DeleteConfirmationDialog from '@/components/ui/delete-confirmation-dialog';
 import StationCard from './Station/StationCard';
 import StatsCard from './StatsCard';
 import AddStationModal from './Station/AddStationModal';
@@ -143,6 +144,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [stationToDelete, setStationToDelete] = useState<Station | null>(null);
   
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
@@ -191,7 +193,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       // Update UI state after successful deletion
       setStations(prev => prev.filter(s => s.id !== stationId));
-      setShowDeleteDialog(null);
+      setStationToDelete(null);
 
       toast({
         title: "Station Removed",
@@ -206,6 +208,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         variant: "destructive",
       });
     }
+  };
+
+  const showDeleteConfirmation = (station: Station) => {
+    setStationToDelete(station);
   };
 
   const updateStationStatus = (stationId: string, status: Station["status"]) => {
@@ -676,6 +682,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   >
                     INACTIVE ({stations.filter(s => s.status !== 'OCCUPIED').length})
                   </Button>
+                  {stats.maintenanceStations > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="font-gaming text-xs hover:bg-warning/10 bg-warning/5 border-warning/30 text-warning"
+                      disabled
+                    >
+                      MAINTENANCE ({stats.maintenanceStations})
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -729,7 +745,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <StationCard
                         station={station}
                         onAction={handleStationAction}
-                        onDelete={() => handleDeleteStation(station.id)}
+                        onDelete={() => showDeleteConfirmation(station)}
                       />
                     </div>
                   ))}
@@ -757,7 +773,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   })}
                   onStationClick={handleStationClick}
                   onStationAction={handleStationAction}
-                  onDelete={handleDeleteStation}
+                  onDelete={showDeleteConfirmation}
                 />
               </Card>
             )}
@@ -779,29 +795,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         isOpen={showStationPopup}
         onClose={handleCloseStationPopup}
         onAction={handleStationAction}
-        onDelete={() => selectedStation && setShowDeleteDialog(selectedStation.id)}
+        onDelete={() => selectedStation && showDeleteConfirmation(selectedStation)}
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog !== null} onOpenChange={() => setShowDeleteDialog(null)}>
-        <AlertDialogContent className="card-gaming">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-gaming text-error">Delete Station</AlertDialogTitle>
-            <AlertDialogDescription className="font-gaming">
-              Are you sure you want to permanently delete this station? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="font-gaming">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              className="bg-error text-error-foreground hover:bg-error/90 font-gaming"
-              onClick={() => showDeleteDialog && handleDeleteStation(showDeleteDialog)}
-            >
-              Delete Station
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmationDialog
+        isOpen={stationToDelete !== null}
+        onClose={() => setStationToDelete(null)}
+        onConfirm={() => stationToDelete && handleDeleteStation(stationToDelete.id)}
+        title="Delete Station"
+        itemName={stationToDelete?.name}
+      />
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
