@@ -13,7 +13,8 @@ import {
   Settings,
   X,
   CreditCard,
-  UserPlus
+  UserPlus,
+  Hand
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,6 +32,7 @@ interface Station {
   specifications: string;
   isLocked: boolean;
   lockedFor?: string;
+  handRaised?: boolean;
   currentSession?: {
     id: string;
     customerName: string;
@@ -170,17 +172,20 @@ const StationPopup: React.FC<StationPopupProps> = ({
 
           {/* Station Details */}
           <div className="px-4 sm:px-6 pb-4 space-y-4">
-            {station.ipAddress && (
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 bg-input/20 rounded-lg">
-                <span className="text-sm font-gaming text-muted-foreground mb-1 sm:mb-0">IP ADDRESS:</span>
-                <span className="text-sm font-mono text-foreground break-all">{station.ipAddress}</span>
-              </div>
-            )}
-
             <div className="p-3 bg-input/20 rounded-lg">
               <span className="text-sm font-gaming text-muted-foreground block mb-1">SPECIFICATIONS:</span>
               <span className="text-sm text-foreground">{station.specifications}</span>
             </div>
+
+            {station.handRaised && (
+              <div className="p-3 bg-error/10 border border-error/30 rounded-lg animate-pulse">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Hand className="w-4 h-4 text-error" />
+                  <span className="font-gaming font-semibold text-error text-sm">ASSISTANCE NEEDED</span>
+                </div>
+                <p className="text-xs text-muted-foreground">User has raised their hand for help</p>
+              </div>
+            )}
 
             {station.isLocked && (
               <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg">
@@ -289,6 +294,21 @@ const StationPopup: React.FC<StationPopupProps> = ({
                 >
                   <Unlock className="w-3 h-3 mr-1" />
                   UNLOCK
+                </Button>
+              )}
+
+              {station.status === 'OCCUPIED' && (
+                <Button
+                  onClick={() => {
+                    onAction(station.id, 'raise-hand');
+                    onClose();
+                  }}
+                  variant={station.handRaised ? "default" : "outline"}
+                  size="sm"
+                  className={`font-gaming text-xs ${station.handRaised ? 'bg-error text-error-foreground' : 'text-error hover:bg-error/10 hover:border-error'}`}
+                >
+                  <Hand className="w-3 h-3 mr-1" />
+                  {station.handRaised ? 'LOWER' : 'RAISE'}
                 </Button>
               )}
 

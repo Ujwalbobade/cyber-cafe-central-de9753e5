@@ -1,5 +1,5 @@
 import React,{ useEffect } from 'react';
-import { Monitor, Gamepad2, Lock, Unlock } from 'lucide-react';
+import { Monitor, Gamepad2, Lock, Unlock, Hand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StationWebSocketService from "../../services/Websockets";
 
@@ -13,6 +13,7 @@ interface Station {
   specifications: string;
   isLocked: boolean;
   lockedFor?: string;
+  handRaised?: boolean;
   currentSession?: {
     id: string;
     customerName: string;
@@ -107,6 +108,13 @@ const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationCl
                `${Math.floor(station.currentSession.timeRemaining / 60)}:${(station.currentSession.timeRemaining % 60).toString().padStart(2, '0')}` : 
                station.status === 'OCCUPIED' ? 'BUSY' : 'MAINT'}
           </div>
+
+          {/* Hand Raised Indicator */}
+          {station.handRaised && (
+            <div className="absolute -top-1 -left-1 w-4 h-4 bg-error rounded-full flex items-center justify-center animate-pulse">
+              <Hand className="w-2 h-2 text-error-foreground" />
+            </div>
+          )}
 
           {/* Lock Indicator and Quick Action */}
           {station.isLocked ? (

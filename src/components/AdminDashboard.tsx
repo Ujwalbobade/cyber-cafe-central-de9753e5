@@ -17,13 +17,15 @@ import {
   Grid3X3,
   List,
   Table,
-  Cog
+  Cog,
+  Hand
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import StationCard from './Station/StationCard';
 import StatsCard from './StatsCard';
@@ -60,6 +62,7 @@ interface Station {
   specifications: string;
   isLocked: boolean;
   lockedFor?: string;
+  handRaised?: boolean;
   currentSession?: {
     id: string;
     customerName: string;
@@ -138,6 +141,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [showStationPopup, setShowStationPopup] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
+  const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
@@ -186,6 +191,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       // Update UI state after successful deletion
       setStations(prev => prev.filter(s => s.id !== stationId));
+      setShowDeleteDialog(null);
 
       toast({
         title: "Station Removed",
@@ -198,6 +204,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         title: "Error",
         description: "Failed to remove the station. Please try again.",
         variant: "destructive",
+      });
+    }
+  };
+
+  const updateStationStatus = (stationId: string, status: Station["status"]) => {
+    setStations(prev =>
+      prev.map(station =>
+        station.id === stationId ? { ...station, status } : station
+      )
+    );
+  };
+
+  const handleRaiseHand = (stationId: string) => {
+    setStations(prev =>
+      prev.map(station =>
+        station.id === stationId ? { ...station, handRaised: !station.handRaised } : station
+      )
+    );
+    
+    const station = stations.find(s => s.id === stationId);
+    if (station) {
+      toast({
+        title: station.handRaised ? "Hand Lowered" : "Hand Raised",
+        description: `${station.name} ${station.handRaised ? 'no longer needs' : 'needs'} assistance`,
+        variant: station.handRaised ? "default" : "destructive"
       });
     }
   };
@@ -337,6 +368,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             )
           );
           toast({ title: "Time Added", description: `${data.minutes} minutes added.` });
+          break;
+
+        case "raise-hand":
+          handleRaiseHand(stationId);
           break;
 
         default:
@@ -494,7 +529,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <div className="flex">
                 <Button
                   variant="ghost"
-                  onClick={onLogout}
+                  onClick={() => setShowLogoutDialog(true)}
                   className="hover:bg-error/10 hover:text-error px-2 md:px-4"
                   size="sm"
                 >
@@ -709,6 +744,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   })}
                   onStationClick={handleStationClick}
                   onStationAction={handleStationAction}
+                  updateStationStatus={updateStationStatus}
                 />
               </Card>
             ) : (
@@ -743,8 +779,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         isOpen={showStationPopup}
         onClose={handleCloseStationPopup}
         onAction={handleStationAction}
-        onDelete={() => selectedStation && handleDeleteStation(selectedStation.id)}
+        onDelete={() => selectedStation && setShowDeleteDialog(selectedStation.id)}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog !== null} onOpenChange={() => setShowDeleteDialog(null)}>
+        <AlertDialogContent className="card-gaming">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-gaming text-error">Delete Station</AlertDialogTitle>
+            <AlertDialogDescription className="font-gaming">
+              Are you sure you want to permanently delete this station? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-gaming">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-error text-error-foreground hover:bg-error/90 font-gaming"
+              onClick={() => showDeleteDialog && handleDeleteStation(showDeleteDialog)}
+            >
+              Delete Station
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent className="card-gaming">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-gaming text-warning">Confirm Logout</AlertDialogTitle>
+            <AlertDialogDescription className="font-gaming">
+              Are you sure you want to logout? You will need to login again to access the admin dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-gaming">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-warning text-warning-foreground hover:bg-warning/90 font-gaming"
+              onClick={() => {
+                setShowLogoutDialog(false);
+                onLogout();
+              }}
+            >
+              Logout
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
