@@ -34,7 +34,7 @@ import AddStationModal from './Station/AddStationModal';
 import StationGridView from './Station/StationGridView';
 import StationTableView from './Station/StationTableView';
 import StationPopup from './Station/StationPopup';
-import WebSocketService from '../services/Websockets';
+import AdminWebSocketService from '../services/Websockets';
 
 // Types
 export type ConnectionState = "connected" | "disconnected" | "error";
@@ -78,7 +78,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const wsService = WebSocketService.getInstance();
+  const wsService = AdminWebSocketService.getInstance();
 
   useEffect(() => {
     wsService.onConnectionChange = (state) => {
@@ -745,7 +745,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <StationCard
                         station={station}
                         onAction={handleStationAction}
-                        onDelete={() => showDeleteConfirmation(station)}
+                  onDelete={() => showDeleteConfirmation(station)}
+                  updateStationStatus={updateStationStatus}
                       />
                     </div>
                   ))}
@@ -774,6 +775,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   onStationClick={handleStationClick}
                   onStationAction={handleStationAction}
                   onDelete={showDeleteConfirmation}
+                  updateStationStatus={updateStationStatus}
                 />
               </Card>
             )}

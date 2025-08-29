@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Monitor, 
   Gamepad2, 
@@ -11,13 +11,15 @@ import {
   User,
   Zap,
   AlertTriangle,
-  Settings
+  Settings,
+  Hand
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import AdminWebSocketService from '../../services/Websockets';
 
 export interface Station {
   id: string;
@@ -42,9 +44,10 @@ interface StationCardProps {
   station: Station;
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: () => void;
+  updateStationStatus?: (stationId: string, status: Station["status"]) => void;
 }
 
-const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }) => {
+const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, updateStationStatus }) => {
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [sessionData, setSessionData] = useState({
     customerName: '',
@@ -53,6 +56,35 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
   });
   const [showLockForm, setShowLockForm] = useState(false);
   const [lockUser, setLockUser] = useState('');
+  const [isOnline, setIsOnline] = useState(true);
+
+  const wsService = AdminWebSocketService.getInstance();
+
+  useEffect(() => {
+    wsService.connect();
+    
+    wsService.onMessage = (data) => {
+      if (data.type === "STATION_STATUS" && data.stationId === station.id) {
+        setIsOnline(data.online);
+        if (updateStationStatus) {
+          updateStationStatus(data.stationId, data.status);
+        }
+      }
+      if (data.type === "STATION_UPDATE" && data.station && data.station.id === station.id) {
+        if (updateStationStatus) {
+          updateStationStatus(data.station.id, data.station.status);
+        }
+      }
+    };
+
+    wsService.onConnectionChange = (state) => {
+      console.log("Station card WS connection:", state);
+    };
+
+    return () => {
+      // Don't disconnect here as other components might be using it
+    };
+  }, [station.id, wsService, updateStationStatus]);
 
   const getStatusConfig = (status: Station['status']) => {
     switch (status) {
@@ -141,16 +173,14 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
             <Badge className={`${statusConfig.badge} font-gaming text-xs px-2 py-0.5`}>
               {statusConfig.text}
             </Badge>
-            {station.isLocked && (
-              <div className="p-0.5 bg-error/20 rounded border border-error/30 relative group">
-                <Lock className="w-3 h-3 text-error" />
-                {station.lockedFor && (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
-                    <div className="bg-card border border-primary/20 rounded px-2 py-1 text-xs font-gaming text-foreground whitespace-nowrap shadow-lg">
-                      Assigned to: {station.lockedFor}
-                    </div>
-                  </div>
-                )}
+            {station.handRaised && (
+              <div className="p-0.5 bg-error/20 rounded border border-error/30 animate-pulse">
+                <Hand className="w-3 h-3 text-error" />
+              </div>
+            )}
+            {!isOnline && (
+              <div className="p-0.5 bg-muted/20 rounded border border-muted/30">
+                <AlertTriangle className="w-3 h-3 text-muted-foreground" />
               </div>
             )}
           </div>
@@ -268,12 +298,16 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
             </Button>
             
             <Button 
-              onClick={onDelete}
+              onClick={() => onAction(station.id, 'raise-hand')}
               variant="outline"
               size="sm"
-              className="text-error hover:bg-error/10 hover:border-error font-gaming text-xs h-7 px-2"
+              className={`font-gaming text-xs h-7 px-2 ${
+                station.handRaised 
+                  ? 'bg-error/20 text-error border-error/30' 
+                  : 'hover:bg-warning/10 hover:border-warning'
+              }`}
             >
-              <Trash2 className="w-3 h-3" />
+              <Hand className="w-3 h-3" />
             </Button>
           </div>
         </div>
@@ -372,6 +406,20 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete }
                 </Button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Delete Button - moved outside forms */}
+        {!showSessionForm && !showLockForm && (
+          <div className="mt-2">
+            <Button 
+              onClick={onDelete}
+              variant="outline"
+              size="sm"
+              className="text-error hover:bg-error/10 hover:border-error font-gaming text-xs h-7 px-2"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Monitor, Gamepad2, Lock, Unlock, Play, Pause, Clock, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import AdminWebSocketService from '../../services/Websockets';
 
 interface Station {
   id: string;
@@ -35,14 +36,35 @@ interface StationTableViewProps {
   onStationClick: (station: Station) => void;
   onStationAction: (stationId: string, action: string, data?: any) => void;
   onDelete: (station: Station) => void;
+  updateStationStatus: (stationId: string, status: Station["status"]) => void;
 }
 
 const StationTableView: React.FC<StationTableViewProps> = ({ 
   stations, 
   onStationClick, 
   onStationAction, 
-  onDelete 
+  onDelete,
+  updateStationStatus
 }) => {
+  const wsService = AdminWebSocketService.getInstance();
+
+  useEffect(() => {
+    wsService.connect();
+    
+    wsService.onMessage = (data) => {
+      if (data.type === "STATION_STATUS") {
+        updateStationStatus(data.stationId, data.status);
+      }
+      if (data.type === "STATION_UPDATE" && data.station) {
+        // Handle real-time station updates
+        updateStationStatus(data.station.id, data.station.status);
+      }
+    };
+
+    return () => {
+      // Don't disconnect here as other components might be using it
+    };
+  }, [wsService, updateStationStatus]);
   const getStatusBadge = (station: Station) => {
     if (station.isLocked) {
       return (
