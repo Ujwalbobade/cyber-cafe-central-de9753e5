@@ -14,20 +14,26 @@ import {
   X,
   CreditCard,
   UserPlus,
-  Hand
+  Hand,
+  Power,
+  RotateCcw,
+  Wrench,
+  Wifi,
+  WifiOff,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import WebSocketService from '../../services/Websockets';
+import AdminWebSocketService from '../../services/Websockets';
 
 interface Station {
   id: string;
   name: string;
   type: 'PC' | 'PS5' | 'PS4';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'OFFLINE';
   hourlyRate: number;
   ipAddress?: string;
   specifications: string;
@@ -84,7 +90,7 @@ const StationPopup: React.FC<StationPopupProps> = ({
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
-    const ws = WebSocketService.getInstance();
+    const ws = AdminWebSocketService.getInstance();
     ws.connect();
 
     // Handle WS messages
@@ -326,6 +332,65 @@ const StationPopup: React.FC<StationPopupProps> = ({
               >
                 <Settings className="w-4 h-4 mr-2" />
                 UNDER MAINTENANCE
+              </Button>
+            </div>
+
+            {/* Station Control Actions - NEW */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <Button
+                onClick={() => {
+                  onAction(station.id, 'power-off');
+                  onClose();
+                }}
+                variant="outline"
+                size="sm"
+                className="font-gaming text-xs text-error hover:bg-error/10 hover:border-error"
+                disabled={station.status === 'OCCUPIED'}
+              >
+                <Power className="w-3 h-3 mr-1" />
+                POWER OFF
+              </Button>
+
+              <Button
+                onClick={() => {
+                  onAction(station.id, 'restart');
+                  onClose();
+                }}
+                variant="outline"  
+                size="sm"
+                className="font-gaming text-xs"
+                disabled={station.status === 'OCCUPIED'}
+              >
+                <RotateCcw className="w-3 h-3 mr-1" />
+                RESTART
+              </Button>
+
+              <Button
+                onClick={() => {
+                  const newStatus = station.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
+                  onAction(station.id, 'toggle-maintenance', { status: newStatus });
+                  onClose();
+                }}
+                variant="outline"
+                size="sm"
+                className={`font-gaming text-xs ${
+                  station.status === 'MAINTENANCE' 
+                    ? 'text-accent hover:bg-accent/10 hover:border-accent' 
+                    : 'text-warning hover:bg-warning/10 hover:border-warning'
+                }`}
+                disabled={station.status === 'OCCUPIED'}
+              >
+                {station.status === 'MAINTENANCE' ? (
+                  <>
+                    <Wifi className="w-3 h-3 mr-1" />
+                    ENABLE
+                  </>
+                ) : (
+                  <>
+                    <Wrench className="w-3 h-3 mr-1" />
+                    MAINTENANCE
+                  </>
+                )}
               </Button>
             </div>
 

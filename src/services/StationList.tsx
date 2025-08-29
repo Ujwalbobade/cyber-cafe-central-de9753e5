@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import StationCard, { Station } from "../components/Station/StationCard";
-import WebSocketService from "@/services/Websockets";
+import AdminWebSocketService from "@/services/Websockets";
 
 const StationList: React.FC = () => {
   const [stations, setStations] = useState<Station[]>([]);
-  const wsService = new WebSocketService();
+  const wsService = AdminWebSocketService.getInstance();
 
   useEffect(() => {
     wsService.connect();

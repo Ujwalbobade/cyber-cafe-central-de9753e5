@@ -1,6 +1,6 @@
 type ConnectionState = "connected" | "disconnected" | "error";
 
-const WS_URL = `ws://${window.location.hostname}:8087/ws/admin`;
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8087/ws/admin`;
 
 export default class AdminWebSocketService {
   private static instance: AdminWebSocketService;

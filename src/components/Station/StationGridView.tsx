@@ -1,7 +1,7 @@
 import React,{ useEffect } from 'react';
 import { Monitor, Gamepad2, Lock, Unlock, Hand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import StationWebSocketService from "../../services/Websockets";
+import AdminWebSocketService from "../../services/Websockets";
 
 interface Station {
   id: string;
@@ -30,7 +30,7 @@ interface StationGridViewProps {
 }
 
 const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationClick, onStationAction , updateStationStatus}) => {
-  const stationWS  =StationWebSocketService.getInstance();
+  const stationWS = AdminWebSocketService.getInstance();
 
   //const stationWS = new StationWebSocketService();
 
