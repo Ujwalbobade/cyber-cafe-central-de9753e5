@@ -11,9 +11,10 @@ interface Station {
   name: string;
   type: 'PC' | 'PS5' | 'PS4';
   hourlyRate: number;
-  ipAddress?: string;
+  macAddress: string;
   specifications: string;
   status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
+  ipAddress?: string;
 }
 
 interface AddStationModalProps {
@@ -27,6 +28,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
     type: 'PC' as 'PC' | 'PS5' | 'PS4',
     hourlyRate: 120,
     ipAddress: '',
+    macAddress: '',
     specifications: ''
   });
 
@@ -41,6 +43,12 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
     
     if (formData.hourlyRate <= 0) {
       newErrors.hourlyRate = 'Hourly rate must be greater than 0';
+    }
+
+    if (!formData.macAddress.trim()) {
+      newErrors.macAddress = 'MAC address is required';
+    } else if (!/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(formData.macAddress)) {
+      newErrors.macAddress = 'Invalid MAC address format (AA:BB:CC:DD:EE:FF)';
     }
     
     if (!formData.specifications.trim()) {
@@ -80,7 +88,6 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-      {/* Animated background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse-gaming" />
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-secondary/10 rounded-full blur-3xl animate-pulse-gaming" style={{ animationDelay: '1s' }} />
@@ -187,6 +194,23 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
               />
               {errors.hourlyRate && (
                 <p className="text-error text-xs font-gaming">{errors.hourlyRate}</p>
+              )}
+            </div>
+
+            {/* MAC Address */}
+            <div className="space-y-2">
+              <Label htmlFor="mac" className="font-gaming text-sm tracking-wide">
+                MAC ADDRESS
+              </Label>
+              <Input
+                id="mac"
+                value={formData.macAddress}
+                onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
+                className="bg-input/50 border-primary/30 focus:border-primary h-11 font-mono text-sm"
+                placeholder="AA:BB:CC:DD:EE:FF"
+              />
+              {errors.macAddress && (
+                <p className="text-error text-xs font-gaming">{errors.macAddress}</p>
               )}
             </div>
 

@@ -1,8 +1,9 @@
 type ConnectionState = "connected" | "disconnected" | "error";
-// For WebSocket
+
 const WS_URL = `ws://${window.location.hostname}:8087/ws/admin`;
 
-export default class WebSocketService {
+export default class AdminWebSocketService {
+  private static instance: AdminWebSocketService;
   private socket: WebSocket | null = null;
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
@@ -11,38 +12,43 @@ export default class WebSocketService {
   public onMessage: ((data: any) => void) | null = null;
   public onConnectionChange: ((state: ConnectionState) => void) | null = null;
 
+  // Singleton instance getter
+  public static getInstance(): AdminWebSocketService {
+    if (!AdminWebSocketService.instance) {
+      AdminWebSocketService.instance = new AdminWebSocketService();
+    }
+    return AdminWebSocketService.instance;
+  }
+
+  private constructor() {} // Private constructor to prevent direct instantiation
+
   connect(): void {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) return;
+
     try {
       this.socket = new WebSocket(WS_URL);
-      
 
       this.socket.onopen = () => {
-        console.log("Admin WebSocket connected");
+        console.log("Admin WebSocket connected ✅");
         this.reconnectAttempts = 0;
         this.onConnectionChange?.("connected");
       };
 
-
       this.socket.onmessage = (event: MessageEvent) => {
         console.log("📩 Raw WS message:", event.data);
-
         try {
-          // If your server always sends JSON
-          const data: unknown = JSON.parse(event.data as string);
+          const data = JSON.parse(event.data as string);
           console.log("✅ Parsed WS message:", data);
-
-          if (this.onMessage) {
-            this.onMessage(data);
-          }
+          this.onMessage?.(data);
         } catch (error) {
           console.error("❌ Error parsing WebSocket message:", error);
         }
       };
+
       this.socket.onclose = () => {
-        console.log("Admin WebSocket disconnected");
+        console.log("Admin WebSocket disconnected ❌");
         this.onConnectionChange?.("disconnected");
 
-        // Attempt to reconnect
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           setTimeout(() => {
@@ -75,7 +81,7 @@ export default class WebSocketService {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
     } else {
-      console.warn("WebSocket is not open. Message not sent.");
+      console.warn("WebSocket is not open. Message not sent:", message);
     }
   }
 }

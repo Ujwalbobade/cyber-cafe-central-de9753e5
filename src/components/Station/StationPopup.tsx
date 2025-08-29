@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Monitor,
   Gamepad2,
@@ -21,6 +21,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import WebSocketService from '../../services/Websockets';
 
 interface Station {
   id: string;
@@ -57,6 +58,18 @@ const StationPopup: React.FC<StationPopupProps> = ({
   onDelete
 }) => {
   const [showSessionForm, setShowSessionForm] = useState(false);
+  const [allowedTimes, setAllowedTimes] = useState<number[]>([10, 15, 30, 60, 120, 180]);
+
+  useEffect(() => {
+    fetch("http://localhost:8080/system-config/latest")
+      .then(res => res.json())
+      .then(data => {
+        if (data.allowedTimes && Array.isArray(data.allowedTimes)) {
+          setAllowedTimes(data.allowedTimes);
+        }
+      })
+      .catch(err => console.error("Failed to fetch config:", err));
+  }, []);
   const [showLockForm, setShowLockForm] = useState(false);
   const [sessionData, setSessionData] = useState({
     customerName: '',
@@ -68,39 +81,75 @@ const StationPopup: React.FC<StationPopupProps> = ({
     prepaidAmount: 0,
     notes: ''
   });
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    const ws = WebSocketService.getInstance();
+    ws.connect();
+
+    // Handle WS messages
+    ws.onMessage = (msg) => {
+      if (msg.type === "station-status" && msg.stationId === station?.id) {
+        setIsOnline(msg.online);
+      }
+    };
+
+    // Optional: connection logging
+    ws.onConnectionChange = (state) => {
+      console.log("WS Connection state:", state);
+    };
+
+    return () => {
+      // If you want to disconnect when popup closes
+      // ws.disconnect();
+    };
+  }, [station]);
 
   if (!station) return null;
 
-  const getStatusConfig = (status: Station['status']) => {
-    switch (status) {
-      case 'AVAILABLE':
-        return {
-          badge: 'status-available',
-          text: 'ONLINE',
-          color: 'text-accent'
-        };
-      case 'OCCUPIED':
-        return {
-          badge: 'status-occupied',
-          text: 'IN SESSION',
-          color: 'text-error'
-        };
-      case 'MAINTENANCE':
-        return {
-          badge: 'status-maintenance',
-          text: 'MAINTENANCE',
-          color: 'text-warning'
-        };
-      default:
-        return {
-          badge: 'bg-muted text-muted-foreground',
-          text: 'UNKNOWN',
-          color: 'text-muted-foreground'
-        };
+  // ✅ Define helper before use
+  const getStatusConfig = (
+    status: Station['status'],
+    isOnline: boolean,
+    hasSession: boolean
+  ) => {
+    if (hasSession) {
+      return {
+        badge: 'status-occupied',
+        text: 'IN SESSION',
+        color: 'text-error'
+      };
     }
+
+    if (status === 'MAINTENANCE') {
+      return {
+        badge: 'status-maintenance',
+        text: 'MAINTENANCE',
+        color: 'text-warning'
+      };
+    }
+
+    if (isOnline) {
+      return {
+        badge: 'status-available',
+        text: 'ONLINE',
+        color: 'text-accent'
+      };
+    }
+
+    return {
+      badge: 'bg-muted text-muted-foreground',
+      text: 'OFFLINE',
+      color: 'text-muted-foreground'
+    };
   };
 
-  const statusConfig = getStatusConfig(station.status);
+  // ✅ Safe usage after definitions
+  const statusConfig = getStatusConfig(
+    station.status,
+    isOnline,
+    !!station.currentSession
+  );
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -347,7 +396,7 @@ const StationPopup: React.FC<StationPopupProps> = ({
                       onChange={(e) => setSessionData({ ...sessionData, timeMinutes: parseInt(e.target.value) })}
                       className="bg-input/50 border border-primary/30 font-gaming h-9 text-sm rounded-md px-3 text-foreground"
                     >
-                      {[10, 15, 30, 60, 120, 180].map(minutes => (
+                      {allowedTimes.map(minutes => (
                         <option key={minutes} value={minutes}>
                           {minutes < 60 ? `${minutes} min` : `${minutes / 60} hour${minutes > 60 ? 's' : ''}`}
                         </option>

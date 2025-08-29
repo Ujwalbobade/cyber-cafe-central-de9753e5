@@ -78,7 +78,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const wsService = new WebSocketService();
+  const wsService = WebSocketService.getInstance();
 
   useEffect(() => {
     wsService.onConnectionChange = (state) => {

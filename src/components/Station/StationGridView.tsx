@@ -30,7 +30,9 @@ interface StationGridViewProps {
 }
 
 const StationGridView: React.FC<StationGridViewProps> = ({ stations, onStationClick, onStationAction , updateStationStatus}) => {
-  const stationWS = new StationWebSocketService();
+  const stationWS  =StationWebSocketService.getInstance();
+
+  //const stationWS = new StationWebSocketService();
 
   useEffect(() => {
     stationWS.onMessage = (data) => {
