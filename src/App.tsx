@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import LoginPage from "./components/LoginPage";
 import AdminDashboard from "./components/AdminDashboard";
-import AnalyticsHub from "./components/AnalyticsHub";
+import AnalyticsHub from "./components/Analytics/AnalyticsHub";
 import SystemSettings from "./pages/SystemSettings";
 import { useToast } from "@/hooks/use-toast";
 

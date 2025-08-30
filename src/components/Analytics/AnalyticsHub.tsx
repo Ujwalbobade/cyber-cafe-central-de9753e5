@@ -4,6 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
@@ -12,7 +14,7 @@ import {
   TrendingUp, TrendingDown, Users, Clock, DollarSign, AlertTriangle,
   Activity, Calendar, Target, Zap, Settings, Download
 } from 'lucide-react';
-import StatsCard from './StatsCard';
+import StatsCard from '../StatsCard';
 import AdminWebSocketService from '@/services/Websockets';
 
 interface AnalyticsData {
@@ -33,6 +35,7 @@ const AnalyticsHub: React.FC = () => {
   const [timeRange, setTimeRange] = useState('7days');
   const [loading, setLoading] = useState(true);
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
+    const navigate = useNavigate();
 
   // Sample data for demo - in real app, this would come from WebSocket/API
   const sampleData: AnalyticsData = {
@@ -134,6 +137,18 @@ const AnalyticsHub: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-hero p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Back Button */}
+        <div className="mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate(-1)} // go back one step
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+        </div>
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
           <div>
