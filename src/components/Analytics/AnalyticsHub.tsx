@@ -15,7 +15,8 @@ import {
   Activity, Calendar, Target, Zap, Settings, Download
 } from 'lucide-react';
 import StatsCard from '../StatsCard';
-import AdminWebSocketService from '@/services/Websockets';
+//import AdminWebSocketService from '@/services/Websockets';
+import AdminWebSocketService, { ConnectionState } from "@/services/Websockets";
 
 interface AnalyticsData {
   totalRevenue: number;
@@ -35,7 +36,59 @@ const AnalyticsHub: React.FC = () => {
   const [timeRange, setTimeRange] = useState('7days');
   const [loading, setLoading] = useState(true);
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
+  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
     const navigate = useNavigate();
+
+
+    useEffect(() => {
+    const wsService = AdminWebSocketService.getInstance();
+
+    // Handle connection state changes
+    wsService.onConnectionChange = (state: ConnectionState) => {
+      console.log("WS connection state:", state);
+      setConnectionState(state);
+    };
+
+    // Handle messages from backend
+    wsService.onMessage = (data: any) => {
+      if (data.type === "analytics_update" || data.type === "analytics_response") {
+        setAnalyticsData(data.data);
+        setLoading(false);
+      } else if (data.type === "revenue_update") {
+        console.log("Revenue update:", data.data);
+      } else if (data.type === "station_alert") {
+        console.log("Station alert:", data.data);
+      } else {
+        console.log("Unhandled WS message:", data);
+      }
+    };
+
+    // Connect & request initial analytics
+    wsService.connect();
+    wsService.requestAnalytics(timeRange);
+
+    return () => {
+      wsService.disconnect();
+    };
+  }, [timeRange]);
+
+    if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-primary font-bold">Loading analytics data...</p>
+      </div>
+    );
+  }
+
+  if (!analyticsData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-destructive">No analytics data received</p>
+      </div>
+    );
+  }
+
+
 
   // Sample data for demo - in real app, this would come from WebSocket/API
   const sampleData: AnalyticsData = {

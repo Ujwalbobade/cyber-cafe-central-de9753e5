@@ -304,24 +304,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           console.log("📢 Session started:", session);
           toast({ title: "Session Started", description: `Session started for ${data.customerName}.` });
           break;
-        /*
-                case "end-session":
-                  if (!data?.sessionId) throw new Error("Session ID required to end session");
-                  await endSession(data.sessionId);
-        
-                  setStations(prev =>
-                    prev.map(station =>
-                      station.currentSession?.id === data.sessionId
-                        ? { ...station, status: "AVAILABLE", currentSession: undefined }
-                        : station
-                    )
-                  );
-        
-                  toast({
-                    title: "Session Ended",
-                    description: `Session ${data.sessionId} has been ended.`,
-                  });
-                  break;*/
         case "end-session":
           if (!data?.sessionId) {
             console.error("❌ Session ID missing in end-session event:", data);

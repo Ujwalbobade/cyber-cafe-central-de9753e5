@@ -1,6 +1,11 @@
-type ConnectionState = "connected" | "disconnected" | "error";
+//type ConnectionState = "connected" | "disconnected" | "error";
 
-const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8087/ws/admin`;
+// 👇 add this before your class
+export type ConnectionState = "connected" | "disconnected" | "error";
+
+const WS_URL = `${
+  window.location.protocol === "https:" ? "wss:" : "ws:"
+}//${window.location.hostname}:8087/ws/admin`;
 
 export default class AdminWebSocketService {
   private static instance: AdminWebSocketService;
@@ -32,6 +37,9 @@ export default class AdminWebSocketService {
         console.log("Admin WebSocket connected ✅");
         this.reconnectAttempts = 0;
         this.onConnectionChange?.("connected");
+
+        // ✅ Subscribe to analytics updates when connected
+        this.send({ type: "subscribe_analytics" });
       };
 
       this.socket.onmessage = (event: MessageEvent) => {
@@ -72,6 +80,9 @@ export default class AdminWebSocketService {
 
   disconnect(): void {
     if (this.socket) {
+      // ✅ Unsubscribe from analytics before disconnect
+      this.send({ type: "unsubscribe_analytics" });
+
       this.socket.close();
       this.socket = null;
     }
@@ -84,4 +95,20 @@ export default class AdminWebSocketService {
       console.warn("WebSocket is not open. Message not sent:", message);
     }
   }
+
+  // ✅ Request analytics data
+  requestAnalytics(timeRange: string = "7days"): void {
+    this.send({
+      type: "request_analytics",
+      timeRange: timeRange,
+    });
+  }
+
+  // ✅ Request real-time analytics
+  requestRealTimeData(): void {
+    this.send({
+      type: "request_real_time_data",
+    });
+  }
+  
 }
