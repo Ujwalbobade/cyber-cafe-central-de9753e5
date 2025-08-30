@@ -18,7 +18,8 @@ import {
   List,
   Table,
   Cog,
-  Hand
+  Hand,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
@@ -522,6 +523,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </Button>
                 <Button
                   variant="ghost"
+                  onClick={() => navigate('/analytics')}
+                  className="hover:bg-accent/10 hover:text-accent px-2 md:px-4"
+                  size="sm"
+                >
+                  <TrendingUp className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                  <span className="hidden md:inline">Analytics</span>
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => navigate('/settings')}
                   className="hover:bg-primary/10 px-2 md:px-4"
                   size="sm"
@@ -612,6 +622,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </Button>
 
                 <Button
+                  onClick={() => navigate('/analytics')}
                   className="h-20 bg-gradient-card border-dashed border-2 border-accent/30 hover:border-accent hover:shadow-glow-accent transform transition-transform duration-300 hover:scale-105"
                   variant="ghost"
                   aria-label="Open analytics hub"
