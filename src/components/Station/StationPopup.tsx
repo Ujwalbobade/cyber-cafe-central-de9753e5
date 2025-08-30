@@ -67,7 +67,7 @@ const StationPopup: React.FC<StationPopupProps> = ({
   const [allowedTimes, setAllowedTimes] = useState<number[]>([10, 15, 30, 60, 120, 180]);
 
   useEffect(() => {
-    fetch("http://localhost:8080/system-config/latest")
+    fetch("http://localhost:8087/system-config/latest")
       .then(res => res.json())
       .then(data => {
         if (data.allowedTimes && Array.isArray(data.allowedTimes)) {
