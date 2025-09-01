@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Eye, EyeOff, Zap, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import gamingBg from '@/assets/gaming-bg.jpg';
 import { login, register } from "@/services/apis/api";
+import AdminWebSocketService, { ConnectionState } from "@/services/Websockets";
 
 interface LoginPageProps {
   onLogin: (token: string) => void;
@@ -24,6 +25,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
+  const [connection, setConnection] = useState<ConnectionState>("disconnected");
+
+  useEffect(() => {
+    const ws = AdminWebSocketService.getInstance();
+    ws.onConnectionChange = (state) => setConnection(state);
+    ws.connect();
+    return () => {
+      ws.onConnectionChange = null;
+    };
+  }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault(); // ⛔ prevent page reload
@@ -101,6 +112,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl animate-pulse-gaming" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/20 rounded-full blur-3xl animate-pulse-gaming" style={{ animationDelay: '1s' }} />
+      </div>
+
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <span className={`h-2 w-2 rounded-full ${connection === 'connected' ? 'bg-primary' : connection === 'error' ? 'bg-destructive' : 'bg-muted-foreground/40'}`} />
+        <span className="text-xs text-muted-foreground">Live: {connection}</span>
       </div>
 
       <Card className="w-full max-w-md card-gaming border-primary/20 backdrop-blur-md animate-slide-in-gaming relative z-10">

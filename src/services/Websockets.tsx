@@ -3,9 +3,11 @@
 // 👇 add this before your class
 export type ConnectionState = "connected" | "disconnected" | "error";
 
-const WS_URL = `${
-  window.location.protocol === "https:" ? "wss:" : "ws:"
-}//${window.location.hostname}:8087/ws/admin`;
+const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+const host = window.location.host; // includes port if present
+const defaultPath = "/ws/admin";
+const wsOverride = new URLSearchParams(window.location.search).get("ws") || localStorage.getItem("WS_URL");
+const WS_URL = wsOverride || `${protocol}//${host}${defaultPath}`;
 
 export default class AdminWebSocketService {
   private static instance: AdminWebSocketService;
