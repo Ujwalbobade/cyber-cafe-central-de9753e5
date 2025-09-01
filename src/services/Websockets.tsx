@@ -2,9 +2,13 @@
 export type ConnectionState = "connected" | "disconnected" | "error";
 const token = localStorage.getItem("token") || "";
 
-const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-const wsHost = window.location.host; // includes port if any
-const WS_URL = `${wsProtocol}//${wsHost}/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+// WebSocket connects to backend on port 8087
+const getWebSocketUrl = () => {
+  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const hostname = window.location.hostname;
+  return `${wsProtocol}//${hostname}:8087/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+};
+const WS_URL = getWebSocketUrl();
 
 // removed legacy localhost WebSocket line
 

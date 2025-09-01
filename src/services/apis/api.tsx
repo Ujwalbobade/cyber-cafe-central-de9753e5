@@ -1,10 +1,16 @@
-// ✅ Detect API base URL dynamically (same-origin with overrides)
+// ✅ Detect API base URL dynamically - targeting backend on port 8087
 const getApiBaseUrl = () => {
   const params = new URLSearchParams(window.location.search);
   const override = params.get("api") || localStorage.getItem("apiBase");
-  const origin = window.location.origin;
-  const base = (override || origin).replace(/\/+$/, "");
-  return `${base}/api`;
+  
+  if (override) {
+    return `${override.replace(/\/+$/, "")}/api`;
+  }
+  
+  // Default: backend runs on port 8087
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:8087/api`;
 };
 const API_BASE_URL = getApiBaseUrl();
 const getAuthHeaders = () => {
