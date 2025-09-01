@@ -32,6 +32,7 @@ const App = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
+    localStorage.removeItem('currentUser');
     setIsAuthenticated(false);
   };
 

@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Monitor,
-  Gamepad2,
-  Users,
-  DollarSign,
-  BarChart3,
-  LogOut,
-  Settings,
-  Zap,
-  Shield,
-  Cpu,
   Activity,
-  Plus,
-  Palette,
-  Edit3,
+  BarChart3,
+  Clock,
+  Cog,
+  Cpu,
+  DollarSign,
   Grid3X3,
   List,
+  LogOut,
+  Monitor,
+  Palette,
+  Plus,
+  Settings,
+  Shield,
   Table,
-  Cog,
-  Hand,
-  TrendingUp
+  TrendingUp,
+  User,
+  Users,
+  Zap,
+  Hand
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
@@ -490,6 +490,21 @@ useEffect(() => {
             </div>
 
             <div className="flex items-center space-x-1 md:space-x-3">
+              {/* User Info */}
+              <div className="hidden lg:flex items-center space-x-3 mr-2 px-3 py-2 bg-card/30 backdrop-blur-sm rounded-lg border border-primary/10">
+                <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <div className="text-sm">
+                  <p className="font-gaming font-semibold text-foreground">
+                    {JSON.parse(localStorage.getItem('currentUser') || '{"username":"Admin"}').username}
+                  </p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                    {JSON.parse(localStorage.getItem('currentUser') || '{"role":"admin"}').role}
+                  </p>
+                </div>
+              </div>
+              
               {/* Other header actions: hidden on small screens, visible from md and up */}
               <div className="hidden md:flex items-center space-x-1 md:space-x-3">
                 <Button

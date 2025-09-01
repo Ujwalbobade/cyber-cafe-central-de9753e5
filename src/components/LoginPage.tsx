@@ -48,8 +48,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
         if (token) {
           localStorage.setItem("token", token);  // ✅ save JWT
+          
+          // Store user info along with token
+          localStorage.setItem('currentUser', JSON.stringify({
+            username: data.user?.username || credentials.username,
+            email: data.user?.email || '',
+            role: data.user?.role || 'admin'
+          }));
+          
           onLogin(token);
-        
         }
         // const token = data?.token || "mock-jwt-token";
         //  onLogin(token);
