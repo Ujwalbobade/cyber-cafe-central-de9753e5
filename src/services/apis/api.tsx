@@ -1,7 +1,5 @@
 // ✅ Detect API base URL dynamically
 const API_BASE_URL = `http://${window.location.hostname}:8087/api`;
-
-// ✅ Helper to build headers with token
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
   return {
@@ -10,8 +8,6 @@ const getAuthHeaders = () => {
   };
 };
 
-
-// ✅ Generic fetch wrapper
 const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
@@ -19,6 +15,7 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
       ...getAuthHeaders(),
       ...(options.headers || {}),
     },
+   // ✅ ensures cookies/auth headers are sent
   });
 
   const data = await response.json().catch(() => ({}));
@@ -27,6 +24,7 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   }
   return data;
 };
+
 
 // ----------- AUTH -----------
 export const login = (username: string, password: string) =>

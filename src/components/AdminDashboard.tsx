@@ -79,31 +79,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+//  const wsService = AdminWebSocketService.getInstance();
+
+useEffect(() => {
   const wsService = AdminWebSocketService.getInstance();
 
-  useEffect(() => {
-    wsService.onConnectionChange = (state) => {
-      setConnectionStatus(state);
-    };
+  wsService.onConnectionChange = (state) => {
+    setConnectionStatus(state);
+  };
 
-    wsService.onMessage = (data) => {
-      if (data.type === "STATION_UPDATE" && data.station) {
-        setStations((prev) =>
-          prev.map((s) => (s.id === data.station.id ? { ...s, ...data.station } : s))
-        );
-      }
+  wsService.onMessage = (data) => {
+    if (data.type === "STATION_UPDATE" && data.station) {
+      setStations((prev) =>
+        prev.map((s) => (s.id === data.station.id ? { ...s, ...data.station } : s))
+      );
+    }
 
-      if (data.type === "STATION_LIST" && Array.isArray(data.stations)) {
-        setStations(data.stations);
-      }
-    };
+    if (data.type === "STATION_LIST" && Array.isArray(data.stations)) {
+      setStations(data.stations);
+    }
+  };
+   if (!wsService.isConnected()) {
+    wsService.connect(); // only connect if not already connected
+  }
 
-    wsService.connect();
-
-    return () => {
-      wsService.disconnect();
-    };
-  }, [setStations]);
+//  wsService.connect();
+ return () => {
+    // Only remove listeners, don't disconnect the socket
+    wsService.onMessage = null;
+    wsService.onConnectionChange = null;
+  };
+  
+}, []);
 
     // Using initialConfig defined above
   useEffect(() => {
@@ -818,6 +825,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               onClick={() => {
                 setShowLogoutDialog(false);
                 onLogout();
+                AdminWebSocketService.getInstance().disconnect();
               }}
             >
               Logout

@@ -49,6 +49,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         if (token) {
           localStorage.setItem("token", token);  // ✅ save JWT
           onLogin(token);
+        
         }
         // const token = data?.token || "mock-jwt-token";
         //  onLogin(token);
