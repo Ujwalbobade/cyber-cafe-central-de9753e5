@@ -1,5 +1,12 @@
-// ✅ Detect API base URL dynamically
-const API_BASE_URL = `http://${window.location.hostname}:8087/api`;
+// ✅ Detect API base URL dynamically (same-origin with overrides)
+const getApiBaseUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  const override = params.get("api") || localStorage.getItem("apiBase");
+  const origin = window.location.origin;
+  const base = (override || origin).replace(/\/+$/, "");
+  return `${base}/api`;
+};
+const API_BASE_URL = getApiBaseUrl();
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
   return {

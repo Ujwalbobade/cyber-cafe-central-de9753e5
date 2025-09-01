@@ -1,12 +1,12 @@
 // types
 export type ConnectionState = "connected" | "disconnected" | "error";
-const token = localStorage.getItem("token");
+const token = localStorage.getItem("token") || "";
 
-const WS_URL = `${
-  window.location.protocol === "https:" ? "wss:" : "ws:"
-}//${window.location.hostname}:8087/ws/admin?token=${token}`;
+const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+const wsHost = window.location.host; // includes port if any
+const WS_URL = `${wsProtocol}//${wsHost}/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 
-const ws = new WebSocket(`ws://localhost:8087/ws/admin?token=${token}`);
+// removed legacy localhost WebSocket line
 
 export default class AdminWebSocketService {
   private static instance: AdminWebSocketService;

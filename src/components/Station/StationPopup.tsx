@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AdminWebSocketService from '../../services/Websockets';
+import { getSystemConfig } from '@/services/apis/api';
 
 interface Station {
   id: string;
@@ -67,14 +68,13 @@ const StationPopup: React.FC<StationPopupProps> = ({
   const [allowedTimes, setAllowedTimes] = useState<number[]>([10, 15, 30, 60, 120, 180]);
 
   useEffect(() => {
-    fetch("http://localhost:8087/system-config/latest")
-      .then(res => res.json())
-      .then(data => {
+    getSystemConfig()
+      .then((data) => {
         if (data.allowedTimes && Array.isArray(data.allowedTimes)) {
           setAllowedTimes(data.allowedTimes);
         }
       })
-      .catch(err => console.error("Failed to fetch config:", err));
+      .catch((err) => console.error("Failed to fetch config:", err));
   }, []);
   const [showLockForm, setShowLockForm] = useState(false);
   const [sessionData, setSessionData] = useState({
