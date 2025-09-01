@@ -1,29 +1,56 @@
 // types
 export type ConnectionState = "connected" | "disconnected" | "error";
-const token = localStorage.getItem("token") || "";
 
-// WebSocket connects to backend on port 8087
-const getWebSocketUrl = () => {
+// ✅ Fetch token from BE and store in localStorage
+// ✅ Fetch token from BE and store in localStorage (only if missing)
+async function fetchDummyToken(): Promise<string> {
+  let token = localStorage.getItem("token");
+
+  if (token) {
+    console.log("Reusing existing token from localStorage ✅");
+    return token;
+  }
+
+  try {
+    const res = await fetch("http://localhost:8087/api/auth/dummy-admin-token");
+    const data = await res.json();
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      console.log("Dummy admin token fetched & stored ✅");
+      return data.token;
+    }
+  } catch (err) {
+    console.error("Failed to fetch dummy token", err);
+  }
+
+  return "";
+}
+
+// ✅ Helper to build WebSocket URL with latest token
+function getWebSocketUrl(): string {
+  const token = localStorage.getItem("token") || "";
   const params = new URLSearchParams(window.location.search);
-  const override = params.get("ws") || params.get("wsBase") || localStorage.getItem("wsBase");
+  const override =
+    params.get("ws") || params.get("wsBase") || localStorage.getItem("wsBase");
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const hostname = window.location.hostname;
 
   if (override) {
     let base = override.replace(/\/+$/, "");
-    if (base.startsWith("http://")) base = "ws://" + base.slice("http://".length);
-    if (base.startsWith("https://")) base = "wss://" + base.slice("https://".length);
+    if (base.startsWith("http://"))
+      base = "ws://" + base.slice("http://".length);
+    if (base.startsWith("https://"))
+      base = "wss://" + base.slice("https://".length);
     if (!/^wss?:\/\//.test(base)) {
       base = `${wsProtocol}//${base}`;
     }
     return `${base}/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
   }
 
-  return `${wsProtocol}//${hostname}:8087/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-};
-const WS_URL = getWebSocketUrl();
-
-// removed legacy localhost WebSocket line
+  return `${wsProtocol}//${hostname}:8087/ws/admin${
+    token ? `?token=${encodeURIComponent(token)}` : ""
+  }`;
+}
 
 export default class AdminWebSocketService {
   private static instance: AdminWebSocketService;
@@ -36,7 +63,6 @@ export default class AdminWebSocketService {
   public onMessage: ((data: any) => void) | null = null;
   public onConnectionChange: ((state: ConnectionState) => void) | null = null;
 
-  // Singleton instance getter
   public static getInstance(): AdminWebSocketService {
     if (!AdminWebSocketService.instance) {
       AdminWebSocketService.instance = new AdminWebSocketService();
@@ -46,14 +72,29 @@ export default class AdminWebSocketService {
 
   private constructor() {}
 
-  connect(): void {
-  if (this.socket) {
-    // Only connect if the socket does not exist or is closed
-    if (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING) {
-      console.log("WebSocket already connected or connecting, skipping...");
-      return;
-    }
+ // ✅ Modified connect(): ensures token is ready before connecting
+// ✅ Always fetch a fresh token before connect
+async connect(): Promise<void> {
+  if (
+    this.socket &&
+    (this.socket.readyState === WebSocket.OPEN ||
+      this.socket.readyState === WebSocket.CONNECTING)
+  ) {
+    console.log("WebSocket already connected or connecting, skipping...");
+    return;
   }
+
+  // 🔄 Always fetch a new token (don't rely on old one)
+  console.log("Fetching fresh dummy token before connect...");
+  const token = await fetchDummyToken();
+
+  if (!token) {
+    console.error("❌ No token received, cannot connect WebSocket.");
+    return;
+  }
+
+  const WS_URL = getWebSocketUrl(); // this will now include fresh token
+  console.log("Connecting with WS URL:", WS_URL);
 
   this.socket = new WebSocket(WS_URL);
 
@@ -73,16 +114,16 @@ export default class AdminWebSocketService {
     }
   };
 
-  this.socket.onclose = (event) => {
+  this.socket.onclose = async (event) => {
     console.log("Admin WebSocket disconnected ❌", event);
     this.onConnectionChange?.("disconnected");
     this.socket = null;
 
-    // Optional: auto-reconnect
+    // ♻️ Auto-reconnect with fresh token
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      setTimeout(() => {
+      setTimeout(async () => {
         this.reconnectAttempts++;
-        this.connect();
+        await this.connect(); // will fetch a new token again
       }, this.reconnectInterval);
     }
   };
@@ -92,7 +133,6 @@ export default class AdminWebSocketService {
     this.onConnectionChange?.("error");
   };
 }
-
   disconnect(): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.send({ type: "unsubscribe_analytics" });
@@ -117,6 +157,6 @@ export default class AdminWebSocketService {
   }
 
   public isConnected(): boolean {
-  return this.socket?.readyState === WebSocket.OPEN;
-}
+    return this.socket?.readyState === WebSocket.OPEN;
+  }
 }
