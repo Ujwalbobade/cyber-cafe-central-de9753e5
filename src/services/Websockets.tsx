@@ -4,8 +4,21 @@ const token = localStorage.getItem("token") || "";
 
 // WebSocket connects to backend on port 8087
 const getWebSocketUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  const override = params.get("ws") || params.get("wsBase") || localStorage.getItem("wsBase");
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const hostname = window.location.hostname;
+
+  if (override) {
+    let base = override.replace(/\/+$/, "");
+    if (base.startsWith("http://")) base = "ws://" + base.slice("http://".length);
+    if (base.startsWith("https://")) base = "wss://" + base.slice("https://".length);
+    if (!/^wss?:\/\//.test(base)) {
+      base = `${wsProtocol}//${base}`;
+    }
+    return `${base}/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+  }
+
   return `${wsProtocol}//${hostname}:8087/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 };
 const WS_URL = getWebSocketUrl();
