@@ -15,8 +15,8 @@ import {
   Activity, Calendar, Target, Zap, Settings, Download
 } from 'lucide-react';
 import StatsCard from '../StatsCard';
-//import AdminWebSocketService from '@/services/Websockets';
 import AdminWebSocketService, { ConnectionState } from "@/services/Websockets";
+import { getAnalytics, getRealTimeAnalytics } from '@/services/apis/api';
 
 interface AnalyticsData {
   totalRevenue: number;
@@ -40,7 +40,27 @@ const AnalyticsHub: React.FC = () => {
     const navigate = useNavigate();
 
 
-    useEffect(() => {
+  // Load initial analytics data from API
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        setLoading(true);
+        const data = await getAnalytics(timeRange);
+        setAnalyticsData(data);
+      } catch (error) {
+        console.error("Failed to load analytics:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAnalytics();
+  }, [timeRange]);
+
+  // Setup WebSocket for real-time updates
+  useEffect(() => {
+    if (!realTimeUpdates) return;
+
     const wsService = AdminWebSocketService.getInstance();
 
     // Handle connection state changes
@@ -49,28 +69,28 @@ const AnalyticsHub: React.FC = () => {
       setConnectionState(state);
     };
 
-    // Handle messages from backend
+    // Handle real-time analytics updates
     wsService.onMessage = (data: any) => {
-      if (data.type === "analytics_update" || data.type === "analytics_response") {
+      if (data.type === "analytics_update") {
         setAnalyticsData(data.data);
-        setLoading(false);
       } else if (data.type === "revenue_update") {
         console.log("Revenue update:", data.data);
       } else if (data.type === "station_alert") {
         console.log("Station alert:", data.data);
-      } else {
-        console.log("Unhandled WS message:", data);
       }
     };
 
-    // Connect & request initial analytics
-    wsService.connect();
-    wsService.requestAnalytics(timeRange);
+    // Connect and request analytics subscription
+    wsService.connect().then(() => {
+      wsService.requestAnalytics(timeRange);
+    });
 
     return () => {
-      wsService.disconnect();
+      // Don't disconnect completely, just remove listeners
+      wsService.onMessage = null;
+      wsService.onConnectionChange = null;
     };
-  }, [timeRange]);
+  }, [timeRange, realTimeUpdates]);
 
     if (loading) {
     return (
@@ -90,85 +110,33 @@ const AnalyticsHub: React.FC = () => {
 
 
 
-  // Sample data for demo - in real app, this would come from WebSocket/API
-  const sampleData: AnalyticsData = {
-    totalRevenue: 15840,
-    totalSessions: 1247,
-    avgSessionTime: 45,
-    activeStations: 18,
-    peakHours: [
-      { hour: '10:00', usage: 12 },
-      { hour: '14:00', usage: 18 },
-      { hour: '16:00', usage: 25 },
-      { hour: '18:00', usage: 32 },
-      { hour: '20:00', usage: 28 },
-      { hour: '22:00', usage: 15 },
-    ],
-    revenueChart: [
-      { date: 'Mon', revenue: 2300, sessions: 180 },
-      { date: 'Tue', revenue: 2100, sessions: 165 },
-      { date: 'Wed', revenue: 2800, sessions: 220 },
-      { date: 'Thu', revenue: 2400, sessions: 190 },
-      { date: 'Fri', revenue: 3200, sessions: 250 },
-      { date: 'Sat', revenue: 1900, sessions: 145 },
-      { date: 'Sun', revenue: 1100, sessions: 97 },
-    ],
-    stationUsage: [
-      { station: 'Station-01', usage: 95, revenue: 2400 },
-      { station: 'Station-02', usage: 87, revenue: 2100 },
-      { station: 'Station-03', usage: 92, revenue: 2300 },
-      { station: 'Station-04', usage: 78, revenue: 1800 },
-      { station: 'Station-05', usage: 85, revenue: 2000 },
-    ],
-    gamePopularity: [
-      { game: 'Valorant', sessions: 340, revenue: 4200 },
-      { game: 'CS2', sessions: 280, revenue: 3500 },
-      { game: 'League of Legends', sessions: 220, revenue: 2800 },
-      { game: 'Fortnite', sessions: 180, revenue: 2200 },
-      { game: 'PUBG', sessions: 150, revenue: 1900 },
-    ],
-    maintenanceAlerts: [
-      { station: 'Station-07', issue: 'GPU Temperature High', priority: 'high' },
-      { station: 'Station-12', issue: 'Network Latency Issues', priority: 'medium' },
-      { station: 'Station-03', issue: 'Scheduled Maintenance', priority: 'low' },
-    ],
-    userBehavior: [
-      { metric: 'Average Session Length', value: 45, change: 12 },
-      { metric: 'Peak Concurrent Users', value: 32, change: 8 },
-      { metric: 'Customer Retention', value: 78, change: -3 },
-      { metric: 'Revenue Per User', value: 12.7, change: 15 },
-    ],
+  // Handle export report
+  const handleExportReport = async () => {
+    try {
+      const data = await getAnalytics(timeRange);
+      const csvContent = `data:text/csv;charset=utf-8,${generateCSV(data)}`;
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `analytics-report-${timeRange}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Failed to export report:", error);
+    }
   };
 
-  useEffect(() => {
-    // Initialize WebSocket connection
-    const wsService = AdminWebSocketService.getInstance();
-    
-    const handleMessage = (data: any) => {
-      if (data.type === 'analytics_update') {
-        setAnalyticsData(data.data);
-      }
-    };
-
-    wsService.connect();
-    wsService.onMessage = handleMessage;
-
-    // Load initial data
-    setTimeout(() => {
-      setAnalyticsData(sampleData);
-      setLoading(false);
-    }, 1000);
-
-    // Request analytics data
-    wsService.send({
-      type: 'request_analytics',
-      timeRange: timeRange
-    });
-
-    return () => {
-      wsService.disconnect();
-    };
-  }, [timeRange]);
+  const generateCSV = (data: AnalyticsData) => {
+    const headers = "Metric,Value\n";
+    const rows = [
+      `Total Revenue,$${data.totalRevenue}`,
+      `Total Sessions,${data.totalSessions}`,
+      `Average Session Time,${data.avgSessionTime} minutes`,
+      `Active Stations,${data.activeStations}`,
+    ].join("\n");
+    return headers + rows;
+  };
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--warning))', 'hsl(var(--error))'];
 
@@ -235,7 +203,7 @@ const AnalyticsHub: React.FC = () => {
               {realTimeUpdates ? "Live Updates" : "Static View"}
             </Button>
             
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExportReport}>
               <Download className="w-4 h-4 mr-2" />
               Export Report
             </Button>

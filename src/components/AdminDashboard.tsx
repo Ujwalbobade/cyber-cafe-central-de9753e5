@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import DeleteConfirmationDialog from '@/components/ui/delete-confirmation-dialog';
+import UserInfoCard from '@/components/ui/user-info-card';
 import StationCard from './Station/StationCard';
 import StatsCard from './StatsCard';
 import AddStationModal from './Station/AddStationModal';
@@ -52,6 +53,14 @@ import {
 
 interface AdminDashboardProps {
   onLogout: () => void;
+}
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  loginTime?: string;
 }
 
 interface Station {
@@ -79,7 +88,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-//  const wsService = AdminWebSocketService.getInstance();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
 useEffect(() => {
   const wsService = AdminWebSocketService.getInstance();
@@ -139,6 +148,26 @@ useEffect(() => {
     };
 
     fetchStations();
+  }, []);
+
+  // Load current user info
+  useEffect(() => {
+    const loadUser = () => {
+      const userData = localStorage.getItem('currentUser');
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          setCurrentUser({
+            ...user,
+            loginTime: new Date().toISOString() // Set current time as login time
+          });
+        } catch (error) {
+          console.error('Failed to parse user data:', error);
+        }
+      }
+    };
+
+    loadUser();
   }, []);
 
 
@@ -490,20 +519,8 @@ useEffect(() => {
             </div>
 
             <div className="flex items-center space-x-1 md:space-x-3">
-              {/* User Info */}
-              <div className="hidden lg:flex items-center space-x-3 mr-2 px-3 py-2 bg-card/30 backdrop-blur-sm rounded-lg border border-primary/10">
-                <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <div className="text-sm">
-                  <p className="font-gaming font-semibold text-foreground">
-                    {JSON.parse(localStorage.getItem('currentUser') || '{"username":"Admin"}').username}
-                  </p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                    {JSON.parse(localStorage.getItem('currentUser') || '{"role":"admin"}').role}
-                  </p>
-                </div>
-              </div>
+              {/* User Info Card */}
+              <UserInfoCard user={currentUser} onLogout={onLogout} compact />
               
               {/* Other header actions: hidden on small screens, visible from md and up */}
               <div className="hidden md:flex items-center space-x-1 md:space-x-3">
@@ -545,18 +562,7 @@ useEffect(() => {
                 </Button>
               </div>
 
-              {/* Logout stays visible on all screen sizes */}
-              <div className="flex">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowLogoutDialog(true)}
-                  className="hover:bg-error/10 hover:text-error px-2 md:px-4"
-                  size="sm"
-                >
-                  <LogOut className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
-                  <span className="hidden md:inline">Logout</span>
-                </Button>
-              </div>
+              {/* Logout stays visible on all screen sizes - now handled by UserInfoCard */}
             </div>
           </div>
         </div>

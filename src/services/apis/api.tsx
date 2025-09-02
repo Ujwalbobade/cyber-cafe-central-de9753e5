@@ -93,6 +93,12 @@ export const addTime = (sessionId, minutes) =>
     body: JSON.stringify({ minutes }),
   });
 
+// ----------- ANALYTICS -----------
+export const getAnalytics = (timeRange: string = "7days") =>
+  apiFetch(`/analytics?timeRange=${timeRange}`);
+
+export const getRealTimeAnalytics = () => apiFetch("/analytics/real-time");
+
 // ----------- SYSTEM CONFIG -----------
 export const getSystemConfig = () => apiFetch("/auth/system-config/latest");
 
