@@ -20,8 +20,15 @@ interface UserInfoCardProps {
   compact?: boolean;
 }
 
-const UserInfoCard: React.FC<UserInfoCardProps> = ({ user, onLogout, compact = false }) => {
-  if (!user) {
+  const UserInfoCard: React.FC<UserInfoCardProps> = ({ user, onLogout, compact = false }) => {
+    console.log('UserInfoCard rendered with user:', user);
+    
+    const handleLogout = () => {
+      console.log('Logout button clicked, calling onLogout function');
+      onLogout();
+    };
+    
+    if (!user) {
     return (
       <Card className="card-gaming">
         <CardContent className="p-4">
@@ -95,7 +102,7 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({ user, onLogout, compact = f
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={onLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 Logout
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -148,7 +155,7 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({ user, onLogout, compact = f
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Logout
                 </AlertDialogAction>
               </AlertDialogFooter>

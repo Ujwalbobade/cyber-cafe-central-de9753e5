@@ -47,6 +47,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         const token = data?.token;
 
         if (token) {
+          // Store the authentication token
+          localStorage.setItem('adminToken', token);
+          
           // Store user info along with token
           localStorage.setItem('currentUser', JSON.stringify({
             username: data.user?.username || credentials.username,
