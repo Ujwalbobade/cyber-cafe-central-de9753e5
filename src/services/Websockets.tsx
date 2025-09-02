@@ -1,7 +1,6 @@
 // types
 export type ConnectionState = "connected" | "disconnected" | "error";
 
-// ✅ Fetch token from BE and store in localStorage
 // ✅ Fetch token from BE and store in localStorage (only if missing)
 async function fetchDummyToken(): Promise<string> {
   let token = localStorage.getItem("token");
