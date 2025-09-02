@@ -1,18 +1,18 @@
-// ✅ Detect API base URL dynamically - targeting backend on port 8087
+// ----------------- api.ts -----------------
 const getApiBaseUrl = () => {
   const params = new URLSearchParams(window.location.search);
   const override = params.get("api") || localStorage.getItem("apiBase");
-  
+
   if (override) {
     return `${override.replace(/\/+$/, "")}/api`;
   }
-  
-  // Default: backend runs on port 8087
+
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
   return `${protocol}//${hostname}:8087/api`;
 };
 const API_BASE_URL = getApiBaseUrl();
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
   return {
@@ -21,14 +21,30 @@ const getAuthHeaders = () => {
   };
 };
 
-const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+  // Automatically fetch dummy token if missing
+  let token = localStorage.getItem("token");
+  if (!token) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem("token-dummy", data.token);
+        token = data.token;
+        console.log("Fetched dummy token ✅");
+      }
+    } catch (err) {
+      console.error("Failed to fetch dummy token", err);
+    }
+  }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       ...getAuthHeaders(),
       ...(options.headers || {}),
     },
-   // ✅ ensures cookies/auth headers are sent
+    credentials: "include",
   });
 
   const data = await response.json().catch(() => ({}));
@@ -37,7 +53,6 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   }
   return data;
 };
-
 
 // ----------- AUTH -----------
 export const login = (username: string, password: string) =>
@@ -48,12 +63,7 @@ export const login = (username: string, password: string) =>
 
 export const getCurrentUser = () => apiFetch("/auth/me");
 
-export const register = (user: {
-  username: string;
-  email: string;
-  password: string;
-  role: string;
-}) =>
+export const register = (user: { username: string; email: string; password: string; role: string; }) =>
   apiFetch("/auth/register", {
     method: "POST",
     body: JSON.stringify(user),

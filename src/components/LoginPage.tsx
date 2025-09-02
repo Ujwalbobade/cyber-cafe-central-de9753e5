@@ -55,6 +55,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             email: data.user?.email || '',
             role: data.user?.role || 'admin'
           }));
+          console.log("user info stored:", localStorage.getItem('currentUser'));
           
           onLogin(token);
         }
