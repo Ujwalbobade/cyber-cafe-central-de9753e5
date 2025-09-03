@@ -21,6 +21,8 @@ import {
   Zap,
   Hand
 } from 'lucide-react';
+import ColorPicker from '@/components/ui/color-picker';
+import { generateThemeColors, applyThemeColors } from '@/utils/themeGenerator';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Card } from '@/components/ui/card';
@@ -195,6 +197,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
   });
+
+  // Handle theme color changes
+  const handleColorChange = (color: { r: number; g: number; b: number }) => {
+    const themeColors = generateThemeColors(color);
+    applyThemeColors(themeColors);
+  };
+
+  // Initialize theme on component mount
+  useEffect(() => {
+    const savedColor = localStorage.getItem('theme-color');
+    if (savedColor) {
+      try {
+        const color = JSON.parse(savedColor);
+        handleColorChange(color);
+      } catch (error) {
+        console.error('Failed to load saved theme color:', error);
+      }
+    }
+  }, []);
 
   // Calculate dashboard statistics
   const stats = {
@@ -567,6 +588,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
                   <span className="hidden md:inline">Settings</span>
                 </Button>
+
+                {/* Color Picker */}
+                <ColorPicker onColorChange={handleColorChange} />
 
                 {/* User Dropdown */}
                 <DropdownMenu>
