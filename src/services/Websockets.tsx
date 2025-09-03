@@ -1,5 +1,35 @@
 // types
 export type ConnectionState = "connected" | "disconnected" | "error";
+function decodeJwt(token: string) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return {};
+  }
+}
+
+async function ensureFreshToken(): Promise<string> {
+  let token = localStorage.getItem("token") || localStorage.getItem("token-dummy");
+  if (token) {
+    const payload = decodeJwt(token);
+    const exp = payload?.exp ? payload.exp * 1000 : 0;
+    if (Date.now() < exp - 5 * 60 * 1000) {
+      // still valid for 5 more min
+      return token;
+    }
+  }
+
+  // fetch new dummy token
+  const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
+  const data = await res.json();
+  if (data.token) {
+    token = data.token;
+    localStorage.setItem("token-dummy", token);
+    console.log("🔄 Refreshed dummy token ✅");
+    return token;
+  }
+  return "";
+}
 const getApiBaseUrl = () => {
   const params = new URLSearchParams(window.location.search);
   const override = params.get("api") || localStorage.getItem("apiBase");
@@ -69,7 +99,7 @@ async function ensureValidToken(): Promise<string> {
 }
 
 async function getWebSocketUrl(): Promise<string> {
-  const token = await ensureValidToken();
+  const token = await ensureFreshToken();
   const params = new URLSearchParams(window.location.search);
   const override =
     params.get("ws") || params.get("wsBase") || localStorage.getItem("wsBase");

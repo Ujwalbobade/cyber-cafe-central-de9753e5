@@ -110,14 +110,6 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
               </Button>
             </div>
             
-            {/* Large Color Preview */}
-            <div 
-              className="w-full h-20 rounded-xl border-2 border-primary/20 shadow-glow-primary transition-all duration-300"
-              style={{ 
-                backgroundColor: `rgb(${color.r}, ${color.g}, ${color.b})`,
-                boxShadow: `0 0 30px rgb(${color.r}, ${color.g}, ${color.b}, 0.3)`
-              }}
-            />
 
             {/* Native Color Picker */}
             <div className="space-y-2">

@@ -232,6 +232,50 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
                 )}
               </div>
             )}
+            {/* Specifications */}
+<div className="space-y-2">
+  <Label htmlFor="specifications" className="font-gaming text-sm tracking-wide">
+    SPECIFICATIONS
+  </Label>
+
+  {/* Predefined options */}
+  <Select
+    onValueChange={(value) => setFormData({ ...formData, specifications: value })}
+  >
+    <SelectTrigger className="bg-input/50 border-primary/30 focus:border-primary h-11 font-gaming mb-2">
+      <SelectValue placeholder="Choose a spec template (optional)" />
+    </SelectTrigger>
+    <SelectContent className="bg-card border-primary/30">
+      <SelectItem value="Intel i5 | 16GB RAM | GTX 1660 | 512GB SSD" className="font-gaming">
+        Entry-Level Gaming PC
+      </SelectItem>
+      <SelectItem value="Intel i7 | 32GB RAM | RTX 3070 | 1TB NVMe" className="font-gaming">
+        High-End Gaming PC
+      </SelectItem>
+      <SelectItem value="Ryzen 5 | 16GB RAM | RTX 3060 | 512GB SSD" className="font-gaming">
+        Balanced Gaming PC
+      </SelectItem>
+      <SelectItem value="PlayStation 5 (Digital Edition)" className="font-gaming">
+        PlayStation 5
+      </SelectItem>
+      <SelectItem value="PlayStation 4 Pro" className="font-gaming">
+        PlayStation 4
+      </SelectItem>
+    </SelectContent>
+  </Select>
+
+  {/* Manual input (still editable) */}
+  <Textarea
+    id="specifications"
+    value={formData.specifications}
+    onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
+    className="bg-input/50 border-primary/30 focus:border-primary font-mono text-sm h-24"
+    placeholder="Enter custom specifications if not using a template..."
+  />
+  {errors.specifications && (
+    <p className="text-error text-xs font-gaming">{errors.specifications}</p>
+  )}
+</div>
             
             {/* Actions */}
             <div className="flex space-x-3 pt-4">
