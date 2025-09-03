@@ -22,26 +22,26 @@ const getAuthHeaders = () => {
 };
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
-  // Automatically fetch dummy token if missing
-  let token = localStorage.getItem("token");
-  if (!token) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
-      const data = await res.json();
-      if (data.token) {
-        localStorage.setItem("token-dummy", data.token);
-        token = data.token;
-        console.log("Fetched dummy token ✅");
-      }
-    } catch (err) {
-      console.error("Failed to fetch dummy token", err);
+  let token: string | null = null;
+
+  try {
+    // Always fetch dummy token before any request
+    const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
+    const data = await res.json();
+    if (data.token) {
+      token = data.token;
+      localStorage.setItem("token-dummy", token);
+      console.log("Fetched dummy token ✅");
     }
+  } catch (err) {
+    console.error("Failed to fetch dummy token", err);
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
-      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
     credentials: "include",

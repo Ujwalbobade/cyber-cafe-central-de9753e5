@@ -1,14 +1,75 @@
 // types
 export type ConnectionState = "connected" | "disconnected" | "error";
+const getApiBaseUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  const override = params.get("api") || localStorage.getItem("apiBase");
 
-// ✅ Get the real token or fallback to dummy token if testing
-function getToken(): string {
-  return localStorage.getItem("token") || localStorage.getItem("token-dummy") || "";
+  if (override) {
+    return `${override.replace(/\/+$/, "")}/api`;
+  }
+
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:8087/api`;
+};
+const API_BASE_URL = getApiBaseUrl();
+
+export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+  let token: string | null = null;
+
+  try {
+    // Always fetch dummy token before any request
+    const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
+    const data = await res.json();
+    if (data.token) {
+      token = data.token;
+      localStorage.setItem("token-dummy", token);
+      console.log("Fetched dummy token ✅");
+    }
+  } catch (err) {
+    console.error("Failed to fetch dummy token", err);
+  } const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+    credentials: "include",
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || `Request failed: ${response.status}`);
+  }
+  return data;
+};
+
+
+// ✅ Always get a fresh token (real or dummy) before WS connection
+async function ensureValidToken(): Promise<string> {
+  let token = localStorage.getItem("token");
+
+  if (token) return token; // real user token exists
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
+    const data = await res.json();
+    if (data.token) {
+      token = data.token;
+      localStorage.setItem("token-dummy", token);
+      console.log("Fetched fresh dummy token ✅");
+      return token;
+    }
+  } catch (err) {
+    console.error("Failed to fetch dummy token", err);
+  }
+
+  return "";
 }
 
-// ✅ Helper to build WebSocket URL with token
-function getWebSocketUrl(): string {
-  const token = getToken();
+async function getWebSocketUrl(): Promise<string> {
+  const token = await ensureValidToken();
   const params = new URLSearchParams(window.location.search);
   const override =
     params.get("ws") || params.get("wsBase") || localStorage.getItem("wsBase");
@@ -43,62 +104,62 @@ export default class AdminWebSocketService {
 
   private constructor() {}
 
-  async connect(): Promise<void> {
-    if (
-      this.socket &&
-      (this.socket.readyState === WebSocket.OPEN ||
-        this.socket.readyState === WebSocket.CONNECTING)
-    ) {
-      console.log("WebSocket already connected or connecting, skipping...");
-      return;
-    }
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.warn("❌ No real user token found, WebSocket cannot connect.");
-      return;
-    }
-
-    const WS_URL = getWebSocketUrl();
-    console.log("Connecting with WS URL:", WS_URL);
-
-    this.socket = new WebSocket(WS_URL);
-
-    this.socket.onopen = () => {
-      console.log("Admin WebSocket connected ✅");
-      this.reconnectAttempts = 0;
-      this.onConnectionChange?.("connected");
-      this.send({ type: "subscribe_analytics" });
-    };
-
-    this.socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        this.onMessage?.(data);
-      } catch {
-        console.error("Error parsing WS message", event.data);
-      }
-    };
-
-    this.socket.onclose = async (event) => {
-      console.log("Admin WebSocket disconnected ❌", event);
-      this.onConnectionChange?.("disconnected");
-      this.socket = null;
-
-      if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        setTimeout(async () => {
-          this.reconnectAttempts++;
-          await this.connect();
-        }, this.reconnectInterval);
-      }
-    };
-
-    this.socket.onerror = (error) => {
-      console.error("WebSocket error", error);
-      this.onConnectionChange?.("error");
-    };
+   async connect(): Promise<void> {
+  if (
+    this.socket &&
+    (this.socket.readyState === WebSocket.OPEN ||
+      this.socket.readyState === WebSocket.CONNECTING)
+  ) {
+    console.log("WebSocket already connected or connecting, skipping...");
+    return;
   }
 
+  // Always get fresh token before each connect
+  const token = await ensureValidToken();
+  if (!token) {
+    console.warn("❌ Cannot connect WebSocket without a valid token");
+    return;
+  }
+
+  const WS_URL = await getWebSocketUrl(); // always includes fresh token
+  console.log("Connecting with WS URL:", WS_URL);
+
+  this.socket = new WebSocket(WS_URL);
+
+  this.socket.onopen = () => {
+    console.log("Admin WebSocket connected ✅");
+    this.reconnectAttempts = 0;
+    this.onConnectionChange?.("connected");
+    this.send({ type: "subscribe_analytics" });
+  };
+
+  this.socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      this.onMessage?.(data);
+    } catch {
+      console.error("Error parsing WS message", event.data);
+    }
+  };
+
+  this.socket.onclose = async (event) => {
+    console.log("Admin WebSocket disconnected ❌", event);
+    this.onConnectionChange?.("disconnected");
+    this.socket = null;
+
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      setTimeout(async () => {
+        this.reconnectAttempts++;
+        await this.connect();
+      }, this.reconnectInterval);
+    }
+  };
+
+  this.socket.onerror = (error) => {
+    console.error("WebSocket error", error);
+    this.onConnectionChange?.("error");
+  };
+}
   disconnect(): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.send({ type: "unsubscribe_analytics" });
