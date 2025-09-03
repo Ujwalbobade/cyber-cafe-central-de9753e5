@@ -232,24 +232,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
                 )}
               </div>
             )}
-
-            {/* Specifications */}
-            <div className="space-y-2">
-              <Label htmlFor="specs" className="font-gaming text-sm tracking-wide">
-                HARDWARE SPECS
-              </Label>
-              <Textarea
-                id="specs"
-                value={formData.specifications}
-                onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
-                className="bg-input/50 border-primary/30 focus:border-primary font-gaming min-h-[80px]"
-                placeholder="e.g., RTX 4080, i7-13700K, 32GB DDR5, 1TB NVMe SSD"
-              />
-              {errors.specifications && (
-                <p className="text-error text-xs font-gaming">{errors.specifications}</p>
-              )}
-            </div>
-
+            
             {/* Actions */}
             <div className="flex space-x-3 pt-4">
               <Button

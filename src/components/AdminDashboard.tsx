@@ -37,6 +37,15 @@ import StationGridView from './Station/StationGridView';
 import StationTableView from './Station/StationTableView';
 import StationPopup from './Station/StationPopup';
 import AdminWebSocketService from '../services/Websockets';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Types
 export type ConnectionState = "connected" | "disconnected" | "error";
@@ -90,38 +99,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-useEffect(() => {
-  const wsService = AdminWebSocketService.getInstance();
+  useEffect(() => {
+    const wsService = AdminWebSocketService.getInstance();
 
-  wsService.onConnectionChange = (state) => {
-    setConnectionStatus(state);
-  };
+    wsService.onConnectionChange = (state) => {
+      setConnectionStatus(state);
+    };
 
-  wsService.onMessage = (data) => {
-    if (data.type === "STATION_UPDATE" && data.station) {
-      setStations((prev) =>
-        prev.map((s) => (s.id === data.station.id ? { ...s, ...data.station } : s))
-      );
+    wsService.onMessage = (data) => {
+      if (data.type === "STATION_UPDATE" && data.station) {
+        setStations((prev) =>
+          prev.map((s) => (s.id === data.station.id ? { ...s, ...data.station } : s))
+        );
+      }
+
+      if (data.type === "STATION_LIST" && Array.isArray(data.stations)) {
+        setStations(data.stations);
+      }
+    };
+    if (!wsService.isConnected()) {
+      wsService.connect(); // only connect if not already connected
     }
 
-    if (data.type === "STATION_LIST" && Array.isArray(data.stations)) {
-      setStations(data.stations);
-    }
-  };
-   if (!wsService.isConnected()) {
-    wsService.connect(); // only connect if not already connected
-  }
+    //  wsService.connect();
+    return () => {
+      // Only remove listeners, don't disconnect the socket
+      wsService.onMessage = null;
+      wsService.onConnectionChange = null;
+    };
 
-//  wsService.connect();
- return () => {
-    // Only remove listeners, don't disconnect the socket
-    wsService.onMessage = null;
-    wsService.onConnectionChange = null;
-  };
-  
-}, []);
+  }, []);
 
-    // Using initialConfig defined above
+  // Using initialConfig defined above
   useEffect(() => {
     const fetchStations = async () => {
       try {
@@ -182,7 +191,7 @@ useEffect(() => {
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [stationToDelete, setStationToDelete] = useState<Station | null>(null);
-  
+
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
   });
@@ -265,7 +274,7 @@ useEffect(() => {
         station.id === stationId ? { ...station, handRaised: !station.handRaised } : station
       )
     );
-    
+
     const station = stations.find(s => s.id === stationId);
     if (station) {
       toast({
@@ -287,18 +296,18 @@ useEffect(() => {
           await lockStation(stationId);
           setStations(prev =>
             prev.map(station =>
-              station.id === stationId ? { 
-                ...station, 
+              station.id === stationId ? {
+                ...station,
                 isLocked: true,
                 lockedFor: data?.assignedUser || undefined
               } : station
             )
           );
-          toast({ 
-            title: "Station Locked", 
-            description: data?.assignedUser 
+          toast({
+            title: "Station Locked",
+            description: data?.assignedUser
               ? `Station assigned to ${data.assignedUser}`
-              : "The station has been locked." 
+              : "The station has been locked."
           });
           break;
 
@@ -306,8 +315,8 @@ useEffect(() => {
           await unlockStation(stationId);
           setStations(prev =>
             prev.map(station =>
-              station.id === stationId ? { 
-                ...station, 
+              station.id === stationId ? {
+                ...station,
                 isLocked: false,
                 lockedFor: undefined
               } : station
@@ -520,8 +529,6 @@ useEffect(() => {
 
             <div className="flex items-center space-x-1 md:space-x-3">
               {/* User Info Card */}
-              <UserInfoCard user={currentUser} onLogout={onLogout} compact />
-              
               {/* Other header actions: hidden on small screens, visible from md and up */}
               <div className="hidden md:flex items-center space-x-1 md:space-x-3">
                 <Button
@@ -560,6 +567,46 @@ useEffect(() => {
                   <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
                   <span className="hidden md:inline">Settings</span>
                 </Button>
+
+                {/* User Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="flex items-center gap-2 px-2 md:px-3 py-2 md:py-2"
+                    >
+                      <Avatar className="w-8 h-8 md:w-9 md:h-9">
+                        <AvatarImage src="/avatar.png" alt={currentUser?.username} />
+                        <AvatarFallback>{currentUser?.username?.[0] ?? "U"}</AvatarFallback>
+                      </Avatar>
+                      <span className="hidden md:inline font-gaming text-sm md:text-base">
+                        {currentUser?.username ?? "Admin"}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent
+                    align="end"
+                    className="min-w-[12rem] sm:w-56 card-gaming p-2"
+                  >
+                    <DropdownMenuLabel className="font-gaming">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground truncate">{currentUser?.email}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{currentUser?.role}</span>
+                      </div>
+                    </DropdownMenuLabel>
+
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem
+                      className="text-warning font-gaming cursor-pointer"
+                      onClick={() => setShowLogoutDialog(true)}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Logout stays visible on all screen sizes - now handled by UserInfoCard */}
@@ -766,15 +813,15 @@ useEffect(() => {
                       <StationCard
                         station={station}
                         onAction={handleStationAction}
-                  onDelete={() => showDeleteConfirmation(station)}
-                  updateStationStatus={updateStationStatus}
+                        onDelete={() => showDeleteConfirmation(station)}
+                        updateStationStatus={updateStationStatus}
                       />
                     </div>
                   ))}
               </div>
             ) : stationView === 'grid' ? (
               <Card className="card-gaming">
-                <StationGridView 
+                <StationGridView
                   stations={stations.filter(station => {
                     if (stationFilter === 'active') return station.status === 'OCCUPIED';
                     if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
@@ -787,7 +834,7 @@ useEffect(() => {
               </Card>
             ) : (
               <Card className="card-gaming p-6">
-                <StationTableView 
+                <StationTableView
                   stations={stations.filter(station => {
                     if (stationFilter === 'active') return station.status === 'OCCUPIED';
                     if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
@@ -841,7 +888,7 @@ useEffect(() => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="font-gaming">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               className="bg-warning text-warning-foreground hover:bg-warning/90 font-gaming"
               onClick={() => {
                 setShowLogoutDialog(false);
