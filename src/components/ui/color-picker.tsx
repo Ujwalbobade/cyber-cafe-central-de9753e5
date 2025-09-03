@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Palette, X } from 'lucide-react';
 
@@ -48,12 +47,6 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
     localStorage.setItem('theme-color', JSON.stringify(newColor));
   };
 
-  const handleColorChange = (component: 'r' | 'g' | 'b', value: string) => {
-    const numValue = Math.max(0, Math.min(255, parseInt(value) || 0));
-    const newColor = { ...color, [component]: numValue };
-    updateColor(newColor);
-  };
-
   const rgbToHex = (r: number, g: number, b: number) => {
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
   };
@@ -67,27 +60,19 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
     } : null;
   };
 
-  const handleHexChange = (hex: string) => {
+  const handleNativeColorChange = (hex: string) => {
     const rgb = hexToRgb(hex);
     if (rgb) {
       updateColor(rgb);
     }
   };
 
-  const handleNativeColorChange = (hex: string) => {
-    handleHexChange(hex);
-  };
-
   const presetColors = [
     { r: 0, g: 234, b: 255, name: 'Cyber Blue' },
-    { r: 147, g: 51, b: 234, name: 'Electric Purple' },
-    { r: 0, g: 255, b: 127, name: 'Neon Green' },
-    { r: 255, g: 20, b: 147, name: 'Hot Pink' },
-    { r: 255, g: 165, b: 0, name: 'Cyber Orange' },
-    { r: 255, g: 0, b: 0, name: 'Laser Red' },
-    { r: 255, g: 255, b: 0, name: 'Electric Yellow' },
-    { r: 128, g: 0, b: 255, name: 'Deep Purple' },
-    { r: 0, g: 255, b: 255, name: 'Aqua' },
+    { r: 147, g: 51, b: 234, name: 'Purple' },
+    { r: 0, g: 255, b: 127, name: 'Green' },
+    { r: 255, g: 20, b: 147, name: 'Pink' },
+    { r: 255, g: 165, b: 0, name: 'Orange' },
   ];
 
   return (
@@ -109,7 +94,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
       {isOpen && (
         <Card 
           ref={cardRef}
-          className="absolute top-12 right-0 z-50 p-6 w-96 card-gaming shadow-2xl border-2 border-primary/20"
+          className="absolute top-12 right-0 z-50 p-6 w-80 card-gaming shadow-2xl border-2 border-primary/20"
         >
           <div className="space-y-6">
             {/* Header */}
@@ -171,77 +156,6 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
                 ))}
               </div>
             </div>
-
-            {/* Advanced Controls */}
-            <details className="space-y-3">
-              <summary className="text-sm font-gaming text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                Advanced RGB & HEX Controls
-              </summary>
-              
-              {/* RGB Sliders */}
-              <div className="space-y-3 pt-2">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="red" className="text-xs font-gaming text-destructive">Red</Label>
-                    <span className="text-xs text-muted-foreground">{color.r}</span>
-                  </div>
-                  <input
-                    id="red"
-                    type="range"
-                    min="0"
-                    max="255"
-                    value={color.r}
-                    onChange={(e) => handleColorChange('r', e.target.value)}
-                    className="w-full h-2 bg-gradient-to-r from-black to-red-500 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="green" className="text-xs font-gaming text-accent">Green</Label>
-                    <span className="text-xs text-muted-foreground">{color.g}</span>
-                  </div>
-                  <input
-                    id="green"
-                    type="range"
-                    min="0"
-                    max="255"
-                    value={color.g}
-                    onChange={(e) => handleColorChange('g', e.target.value)}
-                    className="w-full h-2 bg-gradient-to-r from-black to-green-500 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="blue" className="text-xs font-gaming text-primary">Blue</Label>
-                    <span className="text-xs text-muted-foreground">{color.b}</span>
-                  </div>
-                  <input
-                    id="blue"
-                    type="range"
-                    min="0"
-                    max="255"
-                    value={color.b}
-                    onChange={(e) => handleColorChange('b', e.target.value)}
-                    className="w-full h-2 bg-gradient-to-r from-black to-blue-500 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-
-                {/* Hex Input */}
-                <div className="space-y-2">
-                  <Label htmlFor="hex" className="text-xs font-gaming text-muted-foreground">HEX Value</Label>
-                  <Input
-                    id="hex"
-                    type="text"
-                    value={rgbToHex(color.r, color.g, color.b)}
-                    onChange={(e) => handleHexChange(e.target.value)}
-                    className="h-10 font-mono text-center"
-                    placeholder="#000000"
-                  />
-                </div>
-              </div>
-            </details>
           </div>
         </Card>
       )}
