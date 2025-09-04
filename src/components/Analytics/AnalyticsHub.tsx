@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import { 
+import {
   TrendingUp, TrendingDown, Users, Clock, DollarSign, AlertTriangle,
   Activity, Calendar, Target, Zap, Settings, Download
 } from 'lucide-react';
@@ -37,78 +37,71 @@ const AnalyticsHub: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-
-  // Load initial analytics data from API
   useEffect(() => {
-    const loadAnalytics = async () => {
-      try {
-        setLoading(true);
-        const data = await getAnalytics(timeRange);
+  let isMounted = true;
+  let firstUpdateReceived = false;
+
+  setLoading(true); // always start with loading
+  setAnalyticsData(null); // reset old data
+
+  const wsService = AdminWebSocketService.getInstance();
+
+  const loadAnalytics = async () => {
+    try {
+      const data = await getAnalytics(timeRange);
+      if (isMounted && !firstUpdateReceived && data) {
         setAnalyticsData(data);
-      } catch (error) {
-        console.error("Failed to load analytics:", error);
-      } finally {
-        setLoading(false);
+        setLoading(false); // ✅ stop loader only if API gives real data
       }
-    };
+    } catch (error) {
+      console.error("Failed to load analytics:", error);
+      // ❌ don't immediately set no-data here, wait for websocket
+      if (isMounted && !firstUpdateReceived) {
+        setAnalyticsData(null);
+        // keep loading until WS responds OR timeout
+      }
+    }
+  };
 
-    loadAnalytics();
-  }, [timeRange]);
+  loadAnalytics();
 
-  // Setup WebSocket for real-time updates
-  useEffect(() => {
-    if (!realTimeUpdates) return;
-
-    const wsService = AdminWebSocketService.getInstance();
-
-    // Handle connection state changes
+  if (realTimeUpdates) {
     wsService.onConnectionChange = (state: ConnectionState) => {
       console.log("WS connection state:", state);
       setConnectionState(state);
     };
 
-    // Handle real-time analytics updates
     wsService.onMessage = (data: any) => {
       if (data.type === "analytics_update") {
-        setAnalyticsData(data.data);
-      } else if (data.type === "revenue_update") {
-        console.log("Revenue update:", data.data);
-      } else if (data.type === "station_alert") {
-        console.log("Station alert:", data.data);
+        if (isMounted) {
+          setAnalyticsData(data.data);
+          setLoading(false); // ✅ hide loader once WS responds
+          firstUpdateReceived = true;
+        }
       }
     };
 
-    // Connect and request analytics subscription
     wsService.connect().then(() => {
       wsService.requestAnalytics(timeRange);
     });
-
-    return () => {
-      // Don't disconnect completely, just remove listeners
-      wsService.onMessage = null;
-      wsService.onConnectionChange = null;
-    };
-  }, [timeRange, realTimeUpdates]);
-
-    if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-primary font-bold">Loading analytics data...</p>
-      </div>
-    );
   }
 
-  if (!analyticsData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-destructive">No analytics data received</p>
-      </div>
-    );
-  }
+  // safety timeout: if nothing comes in X sec, stop loader
+  const timeout = setTimeout(() => {
+    if (isMounted && !firstUpdateReceived) {
+      setLoading(false);
+    }
+  }, 30000); 
 
-
+  return () => {
+    isMounted = false;
+    wsService.onMessage = null;
+    wsService.onConnectionChange = null;
+    clearTimeout(timeout);
+  };
+}, [timeRange, realTimeUpdates]);
 
   // Handle export report
   const handleExportReport = async () => {
@@ -153,7 +146,20 @@ const AnalyticsHub: React.FC = () => {
     );
   }
 
-  if (!analyticsData) return null;
+  if (!analyticsData) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-2xl font-gaming font-bold text-foreground">
+            No Analytics Data Available
+          </p>
+          <p className="text-muted-foreground">
+            Try changing the time range or check back later.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero p-6">
@@ -161,8 +167,8 @@ const AnalyticsHub: React.FC = () => {
 
         {/* Back Button */}
         <div className="mb-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => navigate(-1)} // go back one step
             className="flex items-center gap-2"
           >
@@ -180,7 +186,7 @@ const AnalyticsHub: React.FC = () => {
               Comprehensive insights and performance metrics
             </p>
           </div>
-          
+
           <div className="flex flex-wrap gap-3">
             <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger className="w-40 bg-card border-border">
@@ -193,16 +199,16 @@ const AnalyticsHub: React.FC = () => {
                 <SelectItem value="90days">Last 3 Months</SelectItem>
               </SelectContent>
             </Select>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               onClick={() => setRealTimeUpdates(!realTimeUpdates)}
               className={realTimeUpdates ? "border-success text-success" : ""}
             >
               <Activity className="w-4 h-4 mr-2" />
               {realTimeUpdates ? "Live Updates" : "Static View"}
             </Button>
-            
+
             <Button variant="outline" onClick={handleExportReport}>
               <Download className="w-4 h-4 mr-2" />
               Export Report
@@ -270,17 +276,17 @@ const AnalyticsHub: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" />
                       <YAxis stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip 
-                        contentStyle={{ 
+                      <Tooltip
+                        contentStyle={{
                           backgroundColor: 'hsl(var(--popover))',
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px'
                         }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="usage" 
-                        stroke="hsl(var(--primary))" 
+                      <Area
+                        type="monotone"
+                        dataKey="usage"
+                        stroke="hsl(var(--primary))"
                         fill="hsl(var(--primary) / 0.3)"
                         strokeWidth={2}
                       />
@@ -305,9 +311,9 @@ const AnalyticsHub: React.FC = () => {
                         <p className="font-semibold text-foreground">{alert.station}</p>
                         <p className="text-sm text-muted-foreground">{alert.issue}</p>
                       </div>
-                      <Badge 
-                        variant={alert.priority === 'high' ? 'destructive' : 
-                               alert.priority === 'medium' ? 'default' : 'secondary'}
+                      <Badge
+                        variant={alert.priority === 'high' ? 'destructive' :
+                          alert.priority === 'medium' ? 'default' : 'secondary'}
                       >
                         {alert.priority}
                       </Badge>
@@ -333,26 +339,26 @@ const AnalyticsHub: React.FC = () => {
                       <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                       <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" />
                       <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip 
-                        contentStyle={{ 
+                      <Tooltip
+                        contentStyle={{
                           backgroundColor: 'hsl(var(--popover))',
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px'
                         }}
                       />
-                      <Line 
+                      <Line
                         yAxisId="left"
-                        type="monotone" 
-                        dataKey="revenue" 
-                        stroke="hsl(var(--primary))" 
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="hsl(var(--primary))"
                         strokeWidth={3}
                         dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
                       />
-                      <Line 
+                      <Line
                         yAxisId="right"
-                        type="monotone" 
-                        dataKey="sessions" 
-                        stroke="hsl(var(--secondary))" 
+                        type="monotone"
+                        dataKey="sessions"
+                        stroke="hsl(var(--secondary))"
                         strokeWidth={3}
                         dot={{ fill: 'hsl(var(--secondary))', strokeWidth: 2, r: 4 }}
                       />
@@ -375,8 +381,8 @@ const AnalyticsHub: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="station" stroke="hsl(var(--muted-foreground))" />
                     <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip 
-                      contentStyle={{ 
+                    <Tooltip
+                      contentStyle={{
                         backgroundColor: 'hsl(var(--popover))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px'
@@ -431,8 +437,8 @@ const AnalyticsHub: React.FC = () => {
                     {analyticsData.gamePopularity.map((game, index) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <div 
-                            className="w-4 h-4 rounded-full" 
+                          <div
+                            className="w-4 h-4 rounded-full"
                             style={{ backgroundColor: COLORS[index % COLORS.length] }}
                           />
                           <span className="font-semibold">{game.game}</span>
@@ -495,14 +501,14 @@ const AnalyticsHub: React.FC = () => {
                       Consider implementing dynamic pricing during 6-8 PM peak hours to maximize revenue.
                     </p>
                   </div>
-                  
+
                   <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
                     <h4 className="font-semibold text-warning mb-2">Maintenance Schedule</h4>
                     <p className="text-sm text-muted-foreground">
                       Station-07 needs immediate attention. Schedule maintenance to prevent downtime.
                     </p>
                   </div>
-                  
+
                   <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
                     <h4 className="font-semibold text-accent mb-2">Game Library</h4>
                     <p className="text-sm text-muted-foreground">

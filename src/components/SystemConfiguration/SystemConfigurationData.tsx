@@ -354,7 +354,7 @@ const SystemConfiguration: React.FC = () => {
           </div>
         </TabsContent>
 
-  {/* Time Options */}
+        {/* Time Options */}
         <TabsContent value="time" className="space-y-4">
           <Card className="card-gaming p-4">
             <div className="flex items-center justify-between mb-4">

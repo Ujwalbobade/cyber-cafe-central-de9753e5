@@ -37,6 +37,7 @@ export interface Station {
     customerName: string;
     startTime: string;
     timeRemaining: number;
+    endTime?: number; 
   };
 }
 
@@ -61,30 +62,56 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, 
   const wsService = AdminWebSocketService.getInstance();
 
   useEffect(() => {
-    wsService.connect();
-    
-    wsService.onMessage = (data) => {
-      if (data.type === "STATION_STATUS" && data.stationId === station.id) {
-        setIsOnline(data.online);
-        if (updateStationStatus) {
-          updateStationStatus(data.stationId, data.status);
-        }
-      }
-      if (data.type === "STATION_UPDATE" && data.station && data.station.id === station.id) {
-        if (updateStationStatus) {
-          updateStationStatus(data.station.id, data.station.status);
-        }
-      }
-    };
+  wsService.connect();
 
-    wsService.onConnectionChange = (state) => {
-      console.log("Station card WS connection:", state);
-    };
+  wsService.onMessage = (data) => {
+    if (data.type === "STATION_STATUS" && data.stationId === station.id) {
+      setIsOnline(data.online);
+      updateStationStatus?.(data.stationId, data.status);
+    }
 
-    return () => {
-      // Don't disconnect here as other components might be using it
-    };
-  }, [station.id, wsService, updateStationStatus]);
+    if (data.type === "STATION_UPDATE" && data.station && data.station.id === station.id) {
+      updateStationStatus?.(data.station.id, data.station.status);
+    }
+
+    if (data.type === "SESSION_UPDATE" && data.sessionId && data.stationId === station.id) {
+      const { status, endTime } = data;
+
+      if (status === "STARTED") {
+        // set current session
+        station.currentSession = {
+          id: data.sessionId,
+          customerName: data.userId || "Unknown",
+          startTime: new Date().toISOString(),
+          timeRemaining: Math.max(0, Math.floor((endTime - Date.now()) / 60000))
+        };
+      }
+
+      if (status === "TIME_UPDATED" && station.currentSession) {
+        station.currentSession.timeRemaining = Math.max(0, Math.floor((endTime - Date.now()) / 60000));
+      }
+
+      if (status === "COMPLETED") {
+        station.currentSession = undefined;
+      }
+    }
+  };
+
+  wsService.onConnectionChange = (state) => {
+    console.log("Station card WS connection:", state);
+  };
+}, [station.id, wsService, updateStationStatus]);
+
+useEffect(() => {
+  if (station.currentSession) {
+    const timer = setInterval(() => {
+      if (station.currentSession) {
+        station.currentSession.timeRemaining = Math.max(0, station.currentSession.timeRemaining - 1);
+      }
+    }, 60000);
+    return () => clearInterval(timer);
+  }
+}, [station.currentSession]);
 
   const getStatusConfig = (status: Station['status']) => {
     switch (status) {
