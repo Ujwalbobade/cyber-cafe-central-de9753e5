@@ -38,7 +38,6 @@ import AddStationModal from './Station/AddStationModal';
 import StationGridView from './Station/StationGridView';
 import StationTableView from './Station/StationTableView';
 import StationPopup from './Station/StationPopup';
-import AdminWebSocketService from '../services/Websockets';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -101,43 +100,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+  const wsRef = React.useRef<WebSocket | null>(null);
+
   useEffect(() => {
-    const wsService = AdminWebSocketService.getInstance();
-
-    wsService.onConnectionChange = (state) => {
-      setConnectionStatus(state);
-    };
-
-    wsService.onMessage = (data) => {
-      if (data.type === "STATION_UPDATE" && data.station) {
-        setStations((prev) =>
-          prev.map((s) => (s.id === data.station.id ? { ...s, ...data.station } : s))
-        );
-      }
-
-      if (data.type === "STATION_LIST" && Array.isArray(data.stations)) {
-        setStations(data.stations);
-      }
-    };
-    if (!wsService.isConnected()) {
-      wsService.connect(); // only connect if not already connected
-    }
-
-    //  wsService.connect();
-    return () => {
-      // Only remove listeners, don't disconnect the socket
-      wsService.onMessage = null;
-      wsService.onConnectionChange = null;
-    };
-
-  }, []);
-
-  // Using initialConfig defined above
-  useEffect(() => {
-    const fetchStations = async () => {
+    // 1. Fetch initial state via API
+    const fetchInitialStations = async () => {
       try {
         const data = await getStations();
-        // Normalize timeRemaining to minutes if backend returns seconds
         const normalized = (data || []).map((s: any) => {
           if (s.currentSession && typeof s.currentSession.timeRemaining === 'number') {
             let tr = Number(s.currentSession.timeRemaining) || 0;
@@ -146,20 +115,77 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           }
           return s;
         });
-        setStations(normalized); // API returns array of stations
+        setStations(normalized);
+        setLoading(false);
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to load stations',
-          variant: 'destructive',
-        });
-      } finally {
+        console.error('Failed to fetch initial stations:', error);
         setLoading(false);
       }
     };
 
-    fetchStations();
+    fetchInitialStations();
+
+    // 2. Open WebSocket for updates
+    const ws = new WebSocket("ws://localhost:8087/ws/admin");
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("✅ Connected to admin WS");
+      setConnectionStatus("connected");
+      setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: "heartbeat" }));
+        }
+      }, 30000);
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      switch (msg.type) {
+        case "SESSION_UPDATE":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === msg.stationId
+                ? { 
+                    ...station, 
+                    status: msg.status === "COMPLETED" ? "AVAILABLE" : "OCCUPIED",
+                    currentSession: msg.status === "COMPLETED" ? undefined : {
+                      id: msg.sessionId,
+                      customerName: station.currentSession?.customerName || "Customer",
+                      startTime: new Date(msg.currentTime).toISOString(),
+                      timeRemaining: Math.max(0, Math.floor((msg.endTime - Date.now()) / 60000))
+                    }
+                  }
+                : station
+            )
+          );
+          break;
+        case "analytics_update":
+          // Handle analytics updates if needed
+          break;
+        default:
+          console.log("Unhandled WS message:", msg);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("❌ WebSocket disconnected");
+      setConnectionStatus("disconnected");
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      setConnectionStatus("error");
+    };
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
   }, []);
+
 
   // Load current user info
   useEffect(() => {
@@ -917,7 +943,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               onClick={() => {
                 setShowLogoutDialog(false);
                 onLogout();
-                AdminWebSocketService.getInstance().disconnect();
               }}
             >
               Logout

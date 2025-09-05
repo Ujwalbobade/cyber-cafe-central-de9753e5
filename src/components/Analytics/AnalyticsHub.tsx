@@ -15,8 +15,10 @@ import {
   Activity, Calendar, Target, Zap, Settings, Download
 } from 'lucide-react';
 import StatsCard from '../StatsCard';
-import AdminWebSocketService, { ConnectionState } from "@/services/Websockets";
 import { getAnalytics, getRealTimeAnalytics } from '@/services/apis/api';
+
+// Types
+export type ConnectionState = "connected" | "disconnected" | "error";
 
 interface AnalyticsData {
   totalRevenue: number;
@@ -39,69 +41,82 @@ const AnalyticsHub: React.FC = () => {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const navigate = useNavigate();
 
+  const wsRef = React.useRef<WebSocket | null>(null);
+
   useEffect(() => {
-  let isMounted = true;
-  let firstUpdateReceived = false;
+    let isMounted = true;
+    
+    setLoading(true);
+    setAnalyticsData(null);
 
-  setLoading(true); // always start with loading
-  setAnalyticsData(null); // reset old data
-
-  const wsService = AdminWebSocketService.getInstance();
-
-  const loadAnalytics = async () => {
-    try {
-      const data = await getAnalytics(timeRange);
-      if (isMounted && !firstUpdateReceived && data) {
-        setAnalyticsData(data);
-        setLoading(false); // ✅ stop loader only if API gives real data
-      }
-    } catch (error) {
-      console.error("Failed to load analytics:", error);
-      // ❌ don't immediately set no-data here, wait for websocket
-      if (isMounted && !firstUpdateReceived) {
-        setAnalyticsData(null);
-        // keep loading until WS responds OR timeout
-      }
-    }
-  };
-
-  loadAnalytics();
-
-  if (realTimeUpdates) {
-    wsService.onConnectionChange = (state: ConnectionState) => {
-      console.log("WS connection state:", state);
-      setConnectionState(state);
-    };
-
-    wsService.onMessage = (data: any) => {
-      if (data.type === "analytics_update") {
+    // 1. Fetch initial analytics data
+    const loadAnalytics = async () => {
+      try {
+        const data = await getAnalytics(timeRange);
+        if (isMounted && data) {
+          setAnalyticsData(data);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Failed to load analytics:", error);
         if (isMounted) {
-          setAnalyticsData(data.data);
-          setLoading(false); // ✅ hide loader once WS responds
-          firstUpdateReceived = true;
+          setLoading(false);
         }
       }
     };
 
-    wsService.connect().then(() => {
-      wsService.requestAnalytics(timeRange);
-    });
-  }
+    loadAnalytics();
 
-  // safety timeout: if nothing comes in X sec, stop loader
-  const timeout = setTimeout(() => {
-    if (isMounted && !firstUpdateReceived) {
-      setLoading(false);
+    // 2. Open WebSocket for real-time updates
+    if (realTimeUpdates) {
+      const ws = new WebSocket("ws://localhost:8087/ws/admin");
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("✅ Connected to analytics WS");
+        setConnectionState("connected");
+        // Request analytics for the selected time range
+        ws.send(JSON.stringify({ type: "request_analytics", timeRange }));
+        
+        setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ action: "heartbeat" }));
+          }
+        }, 30000);
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        
+        switch (msg.type) {
+          case "analytics_update":
+            if (isMounted) {
+              setAnalyticsData(msg.data);
+            }
+            break;
+          default:
+            console.log("Unhandled analytics WS message:", msg);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("❌ Analytics WebSocket disconnected");
+        setConnectionState("disconnected");
+      };
+
+      ws.onerror = (error) => {
+        console.error("Analytics WebSocket error:", error);
+        setConnectionState("error");
+      };
     }
-  }, 30000); 
 
-  return () => {
-    isMounted = false;
-    wsService.onMessage = null;
-    wsService.onConnectionChange = null;
-    clearTimeout(timeout);
-  };
-}, [timeRange, realTimeUpdates]);
+    return () => {
+      isMounted = false;
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [timeRange, realTimeUpdates]);
 
   // Handle export report
   const handleExportReport = async () => {
