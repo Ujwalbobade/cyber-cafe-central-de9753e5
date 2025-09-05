@@ -58,60 +58,79 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, 
   const [showLockForm, setShowLockForm] = useState(false);
   const [lockUser, setLockUser] = useState('');
   const [isOnline, setIsOnline] = useState(true);
+  const [localTimeRemaining, setLocalTimeRemaining] = useState(station.currentSession?.timeRemaining || 0);
 
   const wsService = AdminWebSocketService.getInstance();
 
   useEffect(() => {
-  wsService.connect();
+    setLocalTimeRemaining(station.currentSession?.timeRemaining || 0);
+  }, [station.currentSession?.timeRemaining]);
 
-  wsService.onMessage = (data) => {
-    if (data.type === "STATION_STATUS" && data.stationId === station.id) {
-      setIsOnline(data.online);
-      updateStationStatus?.(data.stationId, data.status);
+  useEffect(() => {
+    const connectWebSocket = async () => {
+      try {
+        await wsService.connect();
+        console.log("✅ WebSocket connected for station:", station.id);
+      } catch (error) {
+        console.error("❌ WebSocket connection failed for station:", station.id, error);
+        // Retry connection after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+      }
+    };
+
+    connectWebSocket();
+
+    wsService.onMessage = (data) => {
+      if (data.type === "STATION_STATUS" && data.stationId === station.id) {
+        setIsOnline(data.online);
+        updateStationStatus?.(data.stationId, data.status);
+      }
+
+      if (data.type === "STATION_UPDATE" && data.station && data.station.id === station.id) {
+        updateStationStatus?.(data.station.id, data.station.status);
+      }
+
+      if (data.type === "SESSION_UPDATE" && data.sessionId && data.stationId === station.id) {
+        const { status, endTime } = data;
+
+        if (status === "STARTED") {
+          const timeRemaining = Math.max(0, Math.floor((endTime - Date.now()) / 60000));
+          setLocalTimeRemaining(timeRemaining);
+        }
+
+        if (status === "TIME_UPDATED") {
+          const timeRemaining = Math.max(0, Math.floor((endTime - Date.now()) / 60000));
+          setLocalTimeRemaining(timeRemaining);
+        }
+
+        if (status === "COMPLETED") {
+          setLocalTimeRemaining(0);
+        }
+      }
+    };
+
+    wsService.onConnectionChange = (state) => {
+      console.log("Station card WS connection:", state, "for station:", station.id);
+      if (state === "error" || state === "disconnected") {
+        // Retry connection after 3 seconds
+        setTimeout(connectWebSocket, 3000);
+      }
+    };
+  }, [station.id, wsService, updateStationStatus]);
+
+  useEffect(() => {
+    if (station.currentSession && localTimeRemaining > 0) {
+      const timer = setInterval(() => {
+        setLocalTimeRemaining(prev => {
+          const newTime = Math.max(0, prev - 1);
+          console.log(`⏰ Timer update for ${station.name}: ${newTime} minutes remaining`);
+          return newTime;
+        });
+      }, 60000); // Update every minute
+      
+      return () => clearInterval(timer);
     }
-
-    if (data.type === "STATION_UPDATE" && data.station && data.station.id === station.id) {
-      updateStationStatus?.(data.station.id, data.station.status);
-    }
-
-    if (data.type === "SESSION_UPDATE" && data.sessionId && data.stationId === station.id) {
-      const { status, endTime } = data;
-
-      if (status === "STARTED") {
-        // set current session
-        station.currentSession = {
-          id: data.sessionId,
-          customerName: data.userId || "Unknown",
-          startTime: new Date().toISOString(),
-          timeRemaining: Math.max(0, Math.floor((endTime - Date.now()) / 60000))
-        };
-      }
-
-      if (status === "TIME_UPDATED" && station.currentSession) {
-        station.currentSession.timeRemaining = Math.max(0, Math.floor((endTime - Date.now()) / 60000));
-      }
-
-      if (status === "COMPLETED") {
-        station.currentSession = undefined;
-      }
-    }
-  };
-
-  wsService.onConnectionChange = (state) => {
-    console.log("Station card WS connection:", state);
-  };
-}, [station.id, wsService, updateStationStatus]);
-
-useEffect(() => {
-  if (station.currentSession) {
-    const timer = setInterval(() => {
-      if (station.currentSession) {
-        station.currentSession.timeRemaining = Math.max(0, station.currentSession.timeRemaining - 1);
-      }
-    }, 60000);
-    return () => clearInterval(timer);
-  }
-}, [station.currentSession]);
+  }, [station.currentSession, station.name]);
 
   const getStatusConfig = (status: Station['status']) => {
     switch (status) {
@@ -246,7 +265,7 @@ useEffect(() => {
                 </span>
               </div>
               <span className="text-accent font-gaming font-bold text-xs">
-                {formatTime(station.currentSession.timeRemaining)}
+                {formatTime(localTimeRemaining)}
               </span>
             </div>
             <div className="text-xs text-muted-foreground">
