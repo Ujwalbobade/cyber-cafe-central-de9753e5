@@ -91,20 +91,25 @@ const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, 
       }
 
       if (data.type === "SESSION_UPDATE" && data.sessionId && data.stationId === station.id) {
-        const { status, endTime } = data;
+        const { status, endTime, sessionId, userId } = data;
+        console.log(`🎮 Session update for ${station.name}:`, { status, endTime, sessionId });
 
-        if (status === "STARTED") {
+        if (status === "STARTED" || status === "TIME_UPDATED") {
+          // Calculate time remaining from backend's endTime (epoch millis)
           const timeRemaining = Math.max(0, Math.floor((endTime - Date.now()) / 60000));
           setLocalTimeRemaining(timeRemaining);
-        }
-
-        if (status === "TIME_UPDATED") {
-          const timeRemaining = Math.max(0, Math.floor((endTime - Date.now()) / 60000));
-          setLocalTimeRemaining(timeRemaining);
+          console.log(`⏰ Updated time remaining for ${station.name}: ${timeRemaining} minutes`);
+          
+          // Update station status if session started
+          if (status === "STARTED") {
+            updateStationStatus?.(station.id, "OCCUPIED");
+          }
         }
 
         if (status === "COMPLETED") {
           setLocalTimeRemaining(0);
+          updateStationStatus?.(station.id, "AVAILABLE");
+          console.log(`✅ Session completed for ${station.name}`);
         }
       }
     };

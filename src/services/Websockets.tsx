@@ -183,9 +183,27 @@ export default class AdminWebSocketService {
   this.socket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      this.onMessage?.(data);
-    } catch {
-      console.error("Error parsing WS message", event.data);
+      
+      // Handle backend SessionUpdateMessage format
+      if (data.type === "session_update" || data.status) {
+        const sessionUpdate = {
+          type: "SESSION_UPDATE",
+          sessionId: data.sessionId,
+          stationId: data.stationId,
+          userId: data.userId,
+          gameId: data.gameId,
+          status: data.status,
+          currentTime: data.currentTime,
+          endTime: data.endTime,
+          amountPaid: data.amountPaid
+        };
+        console.log("📡 Session update received:", sessionUpdate);
+        this.onMessage?.(sessionUpdate);
+      } else {
+        this.onMessage?.(data);
+      }
+    } catch (error) {
+      console.error("Error parsing WS message", event.data, error);
     }
   };
 
