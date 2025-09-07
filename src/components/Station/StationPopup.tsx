@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Monitor,
   Gamepad2,
@@ -20,7 +20,10 @@ import {
   Wrench,
   Wifi,
   WifiOff,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  Keyboard,
+  Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -65,7 +68,15 @@ const StationPopup: React.FC<StationPopupProps> = ({
   onDelete
 }) => {
   const [showSessionForm, setShowSessionForm] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [allowedTimes, setAllowedTimes] = useState<number[]>([10, 15, 30, 60, 120, 180]);
+  const [quickTimePacks] = useState([
+    { label: '15 min', minutes: 15, price: 37.5, hotkey: '1' },
+    { label: '30 min', minutes: 30, price: 75, hotkey: '2' },
+    { label: '1 hour', minutes: 60, price: 150, hotkey: '3' },
+    { label: '2 hours', minutes: 120, price: 300, hotkey: '4' },
+    { label: '4 hours', minutes: 240, price: 600, hotkey: '5' },
+  ]);
 
   useEffect(() => {
     getSystemConfig()
@@ -197,6 +208,103 @@ const StationPopup: React.FC<StationPopupProps> = ({
     }
   };
 
+  const handleQuickSession = useCallback((timePack: typeof quickTimePacks[0]) => {
+    if (station && station.status === 'AVAILABLE' && !station.isLocked) {
+      setSessionData({
+        customerName: `Quick Session ${timePack.minutes}min`,
+        timeMinutes: timePack.minutes,
+        prepaidAmount: timePack.price
+      });
+      setShowSessionForm(true);
+    }
+  }, [station]);
+
+  const handleAddQuickTime = useCallback((minutes: number) => {
+    if (station && station.currentSession) {
+      onAction(station.id, 'add-time', { 
+        sessionId: station.currentSession.id, 
+        minutes 
+      });
+      onClose();
+    }
+  }, [station, onAction, onClose]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isOpen || showSessionForm || showLockForm) return;
+      
+      // Prevent default only for our shortcuts
+      const key = event.key.toLowerCase();
+      
+      // Quick time packs (1-5)
+      const packIndex = parseInt(key) - 1;
+      if (packIndex >= 0 && packIndex < quickTimePacks.length) {
+        event.preventDefault();
+        handleQuickSession(quickTimePacks[packIndex]);
+        return;
+      }
+
+      // Action shortcuts
+      switch (key) {
+        case 'escape':
+          event.preventDefault();
+          onClose();
+          break;
+        case 's':
+          if (station?.status === 'AVAILABLE' && !station.isLocked) {
+            event.preventDefault();
+            setShowSessionForm(true);
+          }
+          break;
+        case 'e':
+          if (station?.status === 'OCCUPIED') {
+            event.preventDefault();
+            onAction(station.id, 'end-session', { sessionId: station.currentSession?.id });
+            onClose();
+          }
+          break;
+        case 'l':
+          if (!station?.isLocked) {
+            event.preventDefault();
+            setShowLockForm(true);
+          }
+          break;
+        case 'u':
+          if (station?.isLocked) {
+            event.preventDefault();
+            onAction(station.id, 'unlock');
+            onClose();
+          }
+          break;
+        case 'h':
+          event.preventDefault();
+          setShowShortcuts(!showShortcuts);
+          break;
+        case '+':
+        case '=':
+          if (station?.status === 'OCCUPIED') {
+            event.preventDefault();
+            handleAddQuickTime(30);
+          }
+          break;
+        case 'm':
+          if (station?.status !== 'OCCUPIED') {
+            event.preventDefault();
+            const newStatus = station?.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
+            onAction(station.id, 'toggle-maintenance', { status: newStatus });
+            onClose();
+          }
+          break;
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, showSessionForm, showLockForm, station, quickTimePacks, handleQuickSession, handleAddQuickTime, onAction, onClose, showShortcuts]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="card-gaming w-full max-w-md mx-auto p-0 max-h-[90vh] overflow-y-auto"
@@ -273,6 +381,129 @@ const StationPopup: React.FC<StationPopupProps> = ({
               </div>
             )}
           </div>
+
+          {/* Quick Time Packs - NEW */}
+          {station.status === 'AVAILABLE' && !station.isLocked && !showSessionForm && !showLockForm && (
+            <div className="px-4 sm:px-6">
+              <div className="p-3 bg-accent/10 border border-accent/30 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-gaming font-semibold text-accent text-sm flex items-center">
+                    <Package className="w-3 h-3 mr-1" />
+                    QUICK PACKS
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowShortcuts(!showShortcuts)}
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <Keyboard className="w-3 h-3" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-5 gap-1">
+                  {quickTimePacks.map((pack, index) => (
+                    <Button
+                      key={pack.minutes}
+                      onClick={() => handleQuickSession(pack)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-col h-12 p-1 text-xs border-accent/30 hover:bg-accent/20 hover:border-accent relative"
+                    >
+                      <div className="absolute top-0 right-0 text-[10px] text-muted-foreground font-mono">
+                        {pack.hotkey}
+                      </div>
+                      <div className="font-gaming font-bold text-[10px] text-accent">
+                        {pack.label}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground">
+                        ₹{pack.price}
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Add Time for Active Sessions */}
+          {station.status === 'OCCUPIED' && station.currentSession && !showSessionForm && !showLockForm && (
+            <div className="px-4 sm:px-6">
+              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                <h4 className="font-gaming font-semibold text-primary text-sm flex items-center mb-2">
+                  <Plus className="w-3 h-3 mr-1" />
+                  ADD TIME
+                </h4>
+                <div className="grid grid-cols-4 gap-1">
+                  {[15, 30, 60, 120].map((minutes) => (
+                    <Button
+                      key={minutes}
+                      onClick={() => handleAddQuickTime(minutes)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-col h-10 p-1 text-xs border-primary/30 hover:bg-primary/20 hover:border-primary"
+                    >
+                      <div className="font-gaming font-bold text-[10px] text-primary">
+                        +{minutes < 60 ? `${minutes}m` : `${minutes/60}h`}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground">
+                        ₹{(150 * minutes / 60).toFixed(0)}
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Keyboard Shortcuts Help */}
+          {showShortcuts && (
+            <div className="px-4 sm:px-6">
+              <div className="p-3 bg-muted/20 border border-muted/30 rounded-lg">
+                <h4 className="font-gaming font-semibold text-foreground text-sm mb-2 flex items-center">
+                  <Keyboard className="w-3 h-3 mr-1" />
+                  SHORTCUTS
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Start Session:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">S</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">End Session:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">E</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Lock/Unlock:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">L/U</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Add 30min:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">+</kbd>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Quick Packs:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">1-5</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Maintenance:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">M</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Help:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">H</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Close:</span>
+                      <kbd className="bg-muted px-1 rounded font-mono">ESC</kbd>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="p-4 sm:p-6 pt-0 space-y-3 min-h-[180px] transition-all duration-200 ease-in-out">

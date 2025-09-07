@@ -884,8 +884,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     >
                       <StationCard
                         station={station}
-                        onAction={handleStationAction}
-                        onDelete={() => showDeleteConfirmation(station)}
+                        onStationClick={handleStationClick}
                         updateStationStatus={updateStationStatus}
                       />
                     </div>

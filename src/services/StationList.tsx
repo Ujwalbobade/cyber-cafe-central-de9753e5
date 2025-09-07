@@ -37,8 +37,7 @@ const StationList: React.FC = () => {
         <StationCard
           key={station.id}
           station={station}
-          onAction={handleAction}
-          onDelete={() => console.log("delete", station.id)}
+          onStationClick={(station) => console.log("Station clicked:", station.id)}
         />
       ))}
     </div>
