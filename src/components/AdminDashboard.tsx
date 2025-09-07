@@ -123,61 +123,83 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
     };
 
-    fetchInitialStations();
-
-    // 2. Open WebSocket for updates
-    const ws = new WebSocket("ws://localhost:8087/ws/admin");
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log("✅ Connected to admin WS");
-      setConnectionStatus("connected");
-      setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ action: "heartbeat" }));
+    const connectWebSocket = async () => {
+      // Get token for WebSocket authentication
+      let token = localStorage.getItem("adminToken") || localStorage.getItem("token-dummy");
+      
+      if (!token) {
+        try {
+          const res = await fetch("http://localhost:8087/api/auth/dummy-admin-token");
+          const data = await res.json();
+          if (data.token) {
+            token = data.token;
+            localStorage.setItem("token-dummy", token);
+          }
+        } catch (err) {
+          console.error("Failed to fetch token for WebSocket:", err);
         }
-      }, 30000);
-    };
-
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-
-      switch (msg.type) {
-        case "SESSION_UPDATE":
-          setStations((prev) =>
-            prev.map((station) =>
-              station.id === msg.stationId
-                ? { 
-                    ...station, 
-                    status: msg.status === "COMPLETED" ? "AVAILABLE" : "OCCUPIED",
-                    currentSession: msg.status === "COMPLETED" ? undefined : {
-                      id: msg.sessionId,
-                      customerName: station.currentSession?.customerName || "Customer",
-                      startTime: new Date(msg.currentTime).toISOString(),
-                      timeRemaining: Math.max(0, Math.floor((msg.endTime - Date.now()) / 60000))
-                    }
-                  }
-                : station
-            )
-          );
-          break;
-        case "analytics_update":
-          // Handle analytics updates if needed
-          break;
-        default:
-          console.log("Unhandled WS message:", msg);
       }
+
+      const wsUrl = token 
+        ? `ws://localhost:8087/ws/admin?token=${encodeURIComponent(token)}`
+        : `ws://localhost:8087/ws/admin`;
+      
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("✅ Connected to admin WS");
+        setConnectionStatus("connected");
+        setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ action: "heartbeat" }));
+          }
+        }, 30000);
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        switch (msg.type) {
+          case "SESSION_UPDATE":
+            setStations((prev) =>
+              prev.map((station) =>
+                station.id === msg.stationId
+                  ? { 
+                      ...station, 
+                      status: msg.status === "COMPLETED" ? "AVAILABLE" : "OCCUPIED",
+                      currentSession: msg.status === "COMPLETED" ? undefined : {
+                        id: msg.sessionId,
+                        customerName: station.currentSession?.customerName || "Customer",
+                        startTime: new Date(msg.currentTime).toISOString(),
+                        timeRemaining: Math.max(0, Math.floor((msg.endTime - Date.now()) / 60000))
+                      }
+                    }
+                  : station
+              )
+            );
+            break;
+          case "analytics_update":
+            // Handle analytics updates if needed
+            break;
+          default:
+            console.log("Unhandled WS message:", msg);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("❌ WebSocket disconnected");
+        setConnectionStatus("disconnected");
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setConnectionStatus("error");
+      };
     };
 
-    ws.onclose = () => {
-      console.log("❌ WebSocket disconnected");
-      setConnectionStatus("disconnected");
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setConnectionStatus("error");
-    };
+    fetchInitialStations();
+    connectWebSocket();
 
     return () => {
       if (wsRef.current) {

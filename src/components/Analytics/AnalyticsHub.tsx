@@ -69,45 +69,69 @@ const AnalyticsHub: React.FC = () => {
 
     // 2. Open WebSocket for real-time updates
     if (realTimeUpdates) {
-      const ws = new WebSocket("ws://localhost:8087/ws/admin");
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log("✅ Connected to analytics WS");
-        setConnectionState("connected");
-        // Request analytics for the selected time range
-        ws.send(JSON.stringify({ type: "request_analytics", timeRange }));
+      const connectAnalyticsWebSocket = async () => {
+        // Get token for WebSocket authentication
+        let token = localStorage.getItem("adminToken") || localStorage.getItem("token-dummy");
         
-        setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ action: "heartbeat" }));
-          }
-        }, 30000);
-      };
-
-      ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-        
-        switch (msg.type) {
-          case "analytics_update":
-            if (isMounted) {
-              setAnalyticsData(msg.data);
+        if (!token) {
+          try {
+            const res = await fetch("http://localhost:8087/api/auth/dummy-admin-token");
+            const data = await res.json();
+            if (data.token) {
+              token = data.token;
+              localStorage.setItem("token-dummy", token);
             }
-            break;
-          default:
-            console.log("Unhandled analytics WS message:", msg);
+          } catch (err) {
+            console.error("Failed to fetch token for WebSocket:", err);
+          }
         }
+
+        const wsUrl = token 
+          ? `ws://localhost:8087/ws/admin?token=${encodeURIComponent(token)}`
+          : `ws://localhost:8087/ws/admin`;
+        
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          console.log("✅ Connected to analytics WS");
+          setConnectionState("connected");
+          // Request analytics for the selected time range
+          ws.send(JSON.stringify({ type: "request_analytics", timeRange }));
+          
+          setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ action: "heartbeat" }));
+            }
+          }, 30000);
+        };
+
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          
+          switch (msg.type) {
+            case "analytics_update":
+              if (isMounted) {
+                setAnalyticsData(msg.data);
+              }
+              break;
+            default:
+              console.log("Unhandled analytics WS message:", msg);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log("❌ Analytics WebSocket disconnected");
+          setConnectionState("disconnected");
+        };
+
+        ws.onerror = (error) => {
+          console.error("Analytics WebSocket error:", error);
+          setConnectionState("error");
+        };
       };
 
-      ws.onclose = () => {
-        console.log("❌ Analytics WebSocket disconnected");
-        setConnectionState("disconnected");
-      };
-
-      ws.onerror = (error) => {
-        console.error("Analytics WebSocket error:", error);
-        setConnectionState("error");
-      };
+      connectAnalyticsWebSocket();
     }
 
     return () => {
