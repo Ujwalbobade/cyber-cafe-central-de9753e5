@@ -455,6 +455,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           handleRaiseHand(stationId);
           break;
 
+        case "show-popup":
+          const station = stations.find(s => s.id === stationId) || data;
+          if (station) {
+            setSelectedStation(station);
+            setShowStationPopup(true);
+          }
+          break;
+
         default:
           console.warn(`Unknown action: ${action}`);
       }
