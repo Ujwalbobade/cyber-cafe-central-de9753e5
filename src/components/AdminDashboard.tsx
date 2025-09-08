@@ -10,7 +10,6 @@ import {
   List,
   LogOut,
   Monitor,
-  Palette,
   Plus,
   Settings,
   Shield,
@@ -21,8 +20,6 @@ import {
   Zap,
   Hand
 } from 'lucide-react';
-import ColorPicker from '@/components/ui/color-picker';
-import { generateThemeColors, applyThemeColors } from '@/utils/themeGenerator';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Card } from '@/components/ui/card';
@@ -223,25 +220,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
   });
-
-  // Handle theme color changes
-  const handleColorChange = (color: { r: number; g: number; b: number }) => {
-    const themeColors = generateThemeColors(color);
-    applyThemeColors(themeColors);
-  };
-
-  // Initialize theme on component mount
-  useEffect(() => {
-    const savedColor = localStorage.getItem('theme-color');
-    if (savedColor) {
-      try {
-        const color = JSON.parse(savedColor);
-        handleColorChange(color);
-      } catch (error) {
-        console.error('Failed to load saved theme color:', error);
-      }
-    }
-  }, []);
 
   // Calculate dashboard statistics
   const stats = {
@@ -456,10 +434,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           break;
 
         case "show-popup":
+          console.log("Show popup action triggered", { stationId, data });
           const station = stations.find(s => s.id === stationId) || data;
           if (station) {
+            console.log("Station found, setting popup", station);
             setSelectedStation(station);
             setShowStationPopup(true);
+          } else {
+            console.error("Station not found for popup", { stationId, stations: stations.map(s => s.id) });
           }
           break;
 
@@ -477,11 +459,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleStationClick = (station: Station) => {
+    console.log("Station clicked directly", station);
     setSelectedStation(station);
     setShowStationPopup(true);
   };
 
   const handleCloseStationPopup = () => {
+    console.log("Closing station popup");
     setShowStationPopup(false);
     setSelectedStation(null);
   };
@@ -524,16 +508,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 size="sm"
               >
                 <Monitor className="w-6 h-6 mx-auto" />
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => { setShowSettings(true); setMobileNavOpen(false); }}
-                aria-label="Theme"
-                title="Theme"
-                className="flex-1 mx-1 hover:bg-primary/10 font-gaming"
-                size="sm"
-              >
-                <Palette className="w-6 h-6 mx-auto" />
               </Button>
               <Button
                 variant="ghost"
@@ -622,9 +596,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
                   <span className="hidden md:inline">Settings</span>
                 </Button>
-
-                {/* Color Picker */}
-                <ColorPicker onColorChange={handleColorChange} />
 
                 {/* User Dropdown */}
                 <DropdownMenu>

@@ -121,6 +121,8 @@ const StationPopup: React.FC<StationPopupProps> = ({
 
   if (!station) return null;
 
+  console.log("StationPopup rendering with station:", station);
+
   // Status Display
   const statusMap = {
     AVAILABLE: { text: "Available", badge: "bg-green-100 text-green-800" },
@@ -174,14 +176,19 @@ const StationPopup: React.FC<StationPopupProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-md mx-auto p-0 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-md mx-auto p-6 bg-card text-foreground">
+        {/* Debug Info */}
+        <div className="text-xs text-muted-foreground mb-2">
+          Debug: Station {station?.name || 'Unknown'} | Open: {isOpen.toString()}
+        </div>
+        
         {/* Header */}
-        <DialogHeader className="p-4 border-b">
+        <DialogHeader className="mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {getTypeIcon(station.type)}
               <div>
-                <DialogTitle className="font-bold text-lg">
+                <DialogTitle className="font-bold text-lg text-foreground">
                   {station.name}
                 </DialogTitle>
                 <p className="text-sm text-muted-foreground">
@@ -196,11 +203,23 @@ const StationPopup: React.FC<StationPopupProps> = ({
         </DialogHeader>
 
         {/* Body */}
-        <div className="p-4 space-y-3">
+        <div className="space-y-4">
           {/* Specs */}
-          <div className="text-sm text-muted-foreground">
-            <strong>Specs:</strong> {station.specifications}
+          <div className="text-sm">
+            <strong className="text-foreground">Specs:</strong> 
+            <span className="text-muted-foreground ml-2">{station.specifications}</span>
           </div>
+
+          {/* Test Button */}
+          <div className="flex justify-center">
+            <button 
+              onClick={onClose}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90"
+            >
+              Close Popup
+            </button>
+          </div>
+        </div>
 
           {/* Lock Info */}
           {station.isLocked && (
@@ -453,18 +472,6 @@ const StationPopup: React.FC<StationPopupProps> = ({
             </Button>
           </div>
 
-          {/* Delete */}
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              onDelete();
-              onClose();
-            }}
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Delete Station
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );

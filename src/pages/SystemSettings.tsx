@@ -98,6 +98,10 @@ const SystemSettings: React.FC = () => {
     localStorage.setItem('systemConfig', JSON.stringify(config));
     localStorage.setItem('cafe-name', cafeName);
     localStorage.setItem('gaming-cafe-theme', currentTheme);
+    
+    // Apply theme changes
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    
     toast.success('System configuration saved successfully!');
   };
 
@@ -588,7 +592,10 @@ const SystemSettings: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Button
                       variant={currentTheme === 'cyber-blue' ? 'default' : 'outline'}
-                      onClick={() => setCurrentTheme('cyber-blue')}
+                      onClick={() => {
+                        setCurrentTheme('cyber-blue');
+                        document.documentElement.setAttribute('data-theme', 'cyber-blue');
+                      }}
                       className={`h-16 flex flex-col items-center justify-center space-y-2 ${
                         currentTheme === 'cyber-blue' ? 'ring-2 ring-primary' : ''
                       }`}
@@ -598,7 +605,10 @@ const SystemSettings: React.FC = () => {
                     </Button>
                     <Button
                       variant={currentTheme === 'neon-purple' ? 'default' : 'outline'}
-                      onClick={() => setCurrentTheme('neon-purple')}
+                      onClick={() => {
+                        setCurrentTheme('neon-purple');
+                        document.documentElement.setAttribute('data-theme', 'neon-purple');
+                      }}
                       className={`h-16 flex flex-col items-center justify-center space-y-2 ${
                         currentTheme === 'neon-purple' ? 'ring-2 ring-primary' : ''
                       }`}
