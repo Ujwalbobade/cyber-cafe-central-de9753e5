@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import LoginPage from "./components/LoginPage";
 import AdminDashboard from "./components/AdminDashboard";
 import AnalyticsHub from "./components/Analytics/AnalyticsHub";
-import SystemSettings from "./pages/SystemSettings";
+import SystemSettings from "./components/SystemConfiguration/SystemConfig";
 import { useToast } from "@/hooks/use-toast";
 
 const queryClient = new QueryClient();

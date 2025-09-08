@@ -29,8 +29,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+   DialogOverlay,
 } from "@/components/ui/dialog";
 import { getSystemConfig } from "@/services/apis/api";
+
 
 interface Station {
   id: string;
@@ -175,7 +177,9 @@ const StationPopup: React.FC<StationPopupProps> = ({
   };
 
   return (
+
     <Dialog open={isOpen} onOpenChange={onClose}>
+       <DialogOverlay className="bg-black/60 fixed inset-0" />
       <DialogContent className="w-full max-w-md mx-auto p-6 bg-card text-foreground">
         {/* Debug Info */}
         <div className="text-xs text-muted-foreground mb-2">
@@ -220,7 +224,6 @@ const StationPopup: React.FC<StationPopupProps> = ({
             </button>
           </div>
         </div>
-
           {/* Lock Info */}
           {station.isLocked && (
             <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
