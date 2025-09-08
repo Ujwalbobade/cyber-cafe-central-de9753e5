@@ -26,9 +26,20 @@ const StationList: React.FC = () => {
     return () => wsService.disconnect();
   }, []);
 
-  const handleAction = (stationId: string, action: string, data?: any) => {
+  const handleAction = async (stationId: string, action: string, data?: any) => {
     console.log(`Action: ${action}`, { stationId, data });
     wsService.send({ stationId, action, ...data });
+  };
+
+  const handleDelete = (station: Station) => {
+    console.log("Delete station:", station.id);
+    // Handle station deletion
+  };
+
+  const updateStationStatus = (stationId: string, status: Station["status"]) => {
+    setStations((prev) =>
+      prev.map((s) => (s.id === stationId ? { ...s, status } : s))
+    );
   };
 
   return (
@@ -37,7 +48,9 @@ const StationList: React.FC = () => {
         <StationCard
           key={station.id}
           station={station}
-          onStationClick={(station) => console.log("Station clicked:", station.id)}
+          onAction={handleAction}
+          onDelete={() => handleDelete(station)}
+          updateStationStatus={updateStationStatus}
         />
       ))}
     </div>

@@ -35,11 +35,12 @@ export interface Station {
 
 interface StationCardProps {
   station: Station;
-  onStationClick: (station: Station) => void;
-  updateStationStatus?: (stationId: string, status: Station["status"]) => void;
+  onAction: (stationId: string, action: string, data?: any) => Promise<void>;
+  onDelete: () => void;
+  updateStationStatus: (stationId: string, status: Station["status"]) => void;
 }
 
-const StationCard: React.FC<StationCardProps> = ({ station, onStationClick, updateStationStatus }) => {
+const StationCard: React.FC<StationCardProps> = ({ station, onAction, onDelete, updateStationStatus }) => {
   const [isOnline, setIsOnline] = useState(true);
   const [localTimeRemaining, setLocalTimeRemaining] = useState(station.currentSession?.timeRemaining || 0);
 
@@ -176,7 +177,7 @@ const StationCard: React.FC<StationCardProps> = ({ station, onStationClick, upda
   return (
     <Card 
       className={`card-gaming ${statusConfig.border} ${statusConfig.glow} group relative overflow-hidden h-fit cursor-pointer hover:scale-[1.02] transition-all duration-200`}
-      onClick={() => onStationClick(station)}
+      onClick={() => onAction(station.id, "show-popup", station)}
     >
       {/* Animated background effect */}
       <div className="absolute inset-0 bg-gradient-card opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -268,7 +269,7 @@ const StationCard: React.FC<StationCardProps> = ({ station, onStationClick, upda
             className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
             onClick={(e) => {
               e.stopPropagation();
-              onStationClick(station);
+              onAction(station.id, "show-popup", station);
             }}
           >
             <MoreVertical className="w-3 h-3" />
