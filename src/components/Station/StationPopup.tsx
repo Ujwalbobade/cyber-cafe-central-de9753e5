@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Monitor,
   Gamepad2,
@@ -7,11 +7,9 @@ import {
   Lock,
   Unlock,
   Trash2,
-  Clock,
   User,
   Zap,
   Settings,
-  X,
   CreditCard,
   UserPlus,
   Hand,
@@ -19,27 +17,27 @@ import {
   RotateCcw,
   Wrench,
   Wifi,
-  WifiOff,
-  AlertTriangle,
+  Package,
   Plus,
   Keyboard,
-  Package
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import AdminWebSocketService from '../../services/Websockets';
-import { getSystemConfig } from '@/services/apis/api';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { getSystemConfig } from "@/services/apis/api";
 
 interface Station {
   id: string;
   name: string;
-  type: 'PC' | 'PS5' | 'PS4';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'OFFLINE';
+  type: "PC" | "PS5" | "PS4";
+  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE" | "OFFLINE";
   hourlyRate: number;
-  ipAddress?: string;
   specifications: string;
   isLocked: boolean;
   lockedFor?: string;
@@ -60,23 +58,56 @@ interface StationPopupProps {
   onDelete: () => void;
 }
 
+// ---------- Helpers ----------
+const quickTimePacks = [
+  { label: "15m", minutes: 15, price: 37.5, hotkey: "1" },
+  { label: "30m", minutes: 30, price: 75, hotkey: "2" },
+  { label: "1h", minutes: 60, price: 150, hotkey: "3" },
+  { label: "2h", minutes: 120, price: 300, hotkey: "4" },
+  { label: "4h", minutes: 240, price: 600, hotkey: "5" },
+];
+
+const getTypeIcon = (type: Station["type"]) => {
+  switch (type) {
+    case "PC":
+      return <Monitor className="w-8 h-8 text-primary" />;
+    case "PS5":
+    case "PS4":
+      return <Gamepad2 className="w-8 h-8 text-secondary" />;
+    default:
+      return <Monitor className="w-8 h-8 text-primary" />;
+  }
+};
+
+const formatTime = (minutes: number) => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}:${mins.toString().padStart(2, "0")}`;
+};
+
 const StationPopup: React.FC<StationPopupProps> = ({
   station,
   isOpen,
   onClose,
   onAction,
-  onDelete
+  onDelete,
 }) => {
-  const [showSessionForm, setShowSessionForm] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  const [allowedTimes, setAllowedTimes] = useState<number[]>([10, 15, 30, 60, 120, 180]);
-  const [quickTimePacks] = useState([
-    { label: '15 min', minutes: 15, price: 37.5, hotkey: '1' },
-    { label: '30 min', minutes: 30, price: 75, hotkey: '2' },
-    { label: '1 hour', minutes: 60, price: 150, hotkey: '3' },
-    { label: '2 hours', minutes: 120, price: 300, hotkey: '4' },
-    { label: '4 hours', minutes: 240, price: 600, hotkey: '5' },
+  const [allowedTimes, setAllowedTimes] = useState<number[]>([
+    15, 30, 60, 120, 180,
   ]);
+  const [showSessionForm, setShowSessionForm] = useState(false);
+  const [showLockForm, setShowLockForm] = useState(false);
+
+  const [sessionData, setSessionData] = useState({
+    customerName: "",
+    timeMinutes: 60,
+    prepaidAmount: 0,
+  });
+  const [lockData, setLockData] = useState({
+    assignedUser: "",
+    prepaidAmount: 0,
+    notes: "",
+  });
 
   useEffect(() => {
     getSystemConfig()
@@ -87,708 +118,352 @@ const StationPopup: React.FC<StationPopupProps> = ({
       })
       .catch((err) => console.error("Failed to fetch config:", err));
   }, []);
-  const [showLockForm, setShowLockForm] = useState(false);
-  const [sessionData, setSessionData] = useState({
-    customerName: '',
-    timeMinutes: 60,
-    prepaidAmount: 0
-  });
-  const [lockData, setLockData] = useState({
-    assignedUser: '',
-    prepaidAmount: 0,
-    notes: ''
-  });
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    const ws = AdminWebSocketService.getInstance();
-    ws.connect();
-
-    // Handle WS messages
-    ws.onMessage = (msg) => {
-      if (msg.type === "station-status" && msg.stationId === station?.id) {
-        setIsOnline(msg.online);
-      }
-    };
-
-    // Optional: connection logging
-    ws.onConnectionChange = (state) => {
-      console.log("WS Connection state:", state);
-    };
-
-    return () => {
-      // If you want to disconnect when popup closes
-      // ws.disconnect();
-    };
-  }, [station]);
 
   if (!station) return null;
 
-  // ✅ Define helper before use
-  const getStatusConfig = (
-    status: Station['status'],
-    isOnline: boolean,
-    hasSession: boolean
-  ) => {
-    if (hasSession) {
-      return {
-        badge: 'status-occupied',
-        text: 'IN SESSION',
-        color: 'text-error'
-      };
-    }
-
-    if (status === 'MAINTENANCE') {
-      return {
-        badge: 'status-maintenance',
-        text: 'MAINTENANCE',
-        color: 'text-warning'
-      };
-    }
-
-    if (isOnline) {
-      return {
-        badge: 'status-available',
-        text: 'ONLINE',
-        color: 'text-accent'
-      };
-    }
-
-    return {
-      badge: 'bg-muted text-muted-foreground',
-      text: 'OFFLINE',
-      color: 'text-muted-foreground'
-    };
+  // Status Display
+  const statusMap = {
+    AVAILABLE: { text: "Available", badge: "bg-green-100 text-green-800" },
+    OCCUPIED: { text: "In Session", badge: "bg-red-100 text-red-800" },
+    MAINTENANCE: { text: "Maintenance", badge: "bg-yellow-100 text-yellow-800" },
+    OFFLINE: { text: "Offline", badge: "bg-gray-200 text-gray-500" },
   };
 
-  // ✅ Safe usage after definitions
-  const statusConfig = getStatusConfig(
-    station.status,
-    isOnline,
-    !!station.currentSession
-  );
-
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}:${mins.toString().padStart(2, '0')}`;
-  };
-
-  const getTypeIcon = (type: Station['type']) => {
-    switch (type) {
-      case 'PC':
-        return <Monitor className="w-8 h-8 text-primary" />;
-      case 'PS5':
-      case 'PS4':
-        return <Gamepad2 className="w-8 h-8 text-secondary" />;
-      default:
-        return <Monitor className="w-8 h-8 text-primary" />;
-    }
-  };
-
+  // Handlers
   const handleStartSession = () => {
     if (sessionData.customerName.trim()) {
-      onAction(station.id, 'start-session', sessionData);
+      onAction(station.id, "start-session", sessionData);
       setShowSessionForm(false);
-      setSessionData({ customerName: '', timeMinutes: 60, prepaidAmount: 0 });
+      setSessionData({ customerName: "", timeMinutes: 60, prepaidAmount: 0 });
       onClose();
     }
   };
 
   const handleLockStation = () => {
     if (lockData.assignedUser.trim()) {
-      onAction(station.id, 'lock', {
-        assignedUser: lockData.assignedUser,
-        prepaidAmount: lockData.prepaidAmount,
-        notes: lockData.notes
-      });
+      onAction(station.id, "lock", lockData);
       setShowLockForm(false);
-      setLockData({ assignedUser: '', prepaidAmount: 0, notes: '' });
+      setLockData({ assignedUser: "", prepaidAmount: 0, notes: "" });
       onClose();
     }
   };
 
-  const handleQuickSession = useCallback((timePack: typeof quickTimePacks[0]) => {
-    if (station && station.status === 'AVAILABLE' && !station.isLocked) {
-      setSessionData({
-        customerName: `Quick Session ${timePack.minutes}min`,
-        timeMinutes: timePack.minutes,
-        prepaidAmount: timePack.price
-      });
-      setShowSessionForm(true);
-    }
-  }, [station]);
+  const handleQuickSession = useCallback(
+    (pack: typeof quickTimePacks[0]) => {
+      if (station.status === "AVAILABLE" && !station.isLocked) {
+        setSessionData({
+          customerName: `Quick ${pack.label}`,
+          timeMinutes: pack.minutes,
+          prepaidAmount: pack.price,
+        });
+        setShowSessionForm(true);
+      }
+    },
+    [station]
+  );
 
-  const handleAddQuickTime = useCallback((minutes: number) => {
-    if (station && station.currentSession) {
-      onAction(station.id, 'add-time', { 
-        sessionId: station.currentSession.id, 
-        minutes 
+  const handleAddQuickTime = (minutes: number) => {
+    if (station?.currentSession) {
+      onAction(station.id, "add-time", {
+        sessionId: station.currentSession.id,
+        minutes,
       });
       onClose();
     }
-  }, [station, onAction, onClose]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isOpen || showSessionForm || showLockForm) return;
-      
-      // Prevent default only for our shortcuts
-      const key = event.key.toLowerCase();
-      
-      // Quick time packs (1-5)
-      const packIndex = parseInt(key) - 1;
-      if (packIndex >= 0 && packIndex < quickTimePacks.length) {
-        event.preventDefault();
-        handleQuickSession(quickTimePacks[packIndex]);
-        return;
-      }
-
-      // Action shortcuts
-      switch (key) {
-        case 'escape':
-          event.preventDefault();
-          onClose();
-          break;
-        case 's':
-          if (station?.status === 'AVAILABLE' && !station.isLocked) {
-            event.preventDefault();
-            setShowSessionForm(true);
-          }
-          break;
-        case 'e':
-          if (station?.status === 'OCCUPIED') {
-            event.preventDefault();
-            onAction(station.id, 'end-session', { sessionId: station.currentSession?.id });
-            onClose();
-          }
-          break;
-        case 'l':
-          if (!station?.isLocked) {
-            event.preventDefault();
-            setShowLockForm(true);
-          }
-          break;
-        case 'u':
-          if (station?.isLocked) {
-            event.preventDefault();
-            onAction(station.id, 'unlock');
-            onClose();
-          }
-          break;
-        case 'h':
-          event.preventDefault();
-          setShowShortcuts(!showShortcuts);
-          break;
-        case '+':
-        case '=':
-          if (station?.status === 'OCCUPIED') {
-            event.preventDefault();
-            handleAddQuickTime(30);
-          }
-          break;
-        case 'm':
-          if (station?.status !== 'OCCUPIED') {
-            event.preventDefault();
-            const newStatus = station?.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
-            onAction(station.id, 'toggle-maintenance', { status: newStatus });
-            onClose();
-          }
-          break;
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, showSessionForm, showLockForm, station, quickTimePacks, handleQuickSession, handleAddQuickTime, onAction, onClose, showShortcuts]);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="card-gaming w-full max-w-md mx-auto p-0 max-h-[90vh] overflow-y-auto"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <div className="relative">
-          {/* Header */}
-          <DialogHeader className="p-6 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-primary/10 rounded-xl">
-                  {getTypeIcon(station.type)}
-                </div>
-                <div>
-                  <DialogTitle className="font-gaming font-bold text-xl text-foreground">
-                    {station.name}
-                  </DialogTitle>
-                  <p className="text-sm text-muted-foreground font-gaming">
-                    {station.type} • ₹{station.hourlyRate}/hour
-                  </p>
-                </div>
+      <DialogContent className="w-full max-w-md mx-auto p-0 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <DialogHeader className="p-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {getTypeIcon(station.type)}
+              <div>
+                <DialogTitle className="font-bold text-lg">
+                  {station.name}
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  {station.type} • ₹{station.hourlyRate}/hr
+                </p>
               </div>
-              <Badge className={`${statusConfig.badge} font-gaming text-xs px-3 py-1`}>
-                {statusConfig.text}
-              </Badge>
             </div>
-          </DialogHeader>
+            <Badge className={statusMap[station.status].badge}>
+              {statusMap[station.status].text}
+            </Badge>
+          </div>
+        </DialogHeader>
 
-          {/* Station Details */}
-          <div className="px-4 sm:px-6 pb-4 space-y-4">
-            <div className="p-3 bg-input/20 rounded-lg">
-              <span className="text-sm font-gaming text-muted-foreground block mb-1">SPECIFICATIONS:</span>
-              <span className="text-sm text-foreground">{station.specifications}</span>
-            </div>
-
-            {station.handRaised && (
-              <div className="p-3 bg-error/10 border border-error/30 rounded-lg animate-pulse">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Hand className="w-4 h-4 text-error" />
-                  <span className="font-gaming font-semibold text-error text-sm">ASSISTANCE NEEDED</span>
-                </div>
-                <p className="text-xs text-muted-foreground">User has raised their hand for help</p>
-              </div>
-            )}
-
-            {station.isLocked && (
-              <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Lock className="w-4 h-4 text-warning" />
-                  <span className="font-gaming font-semibold text-warning text-sm">STATION LOCKED</span>
-                </div>
-                {station.lockedFor && (
-                  <p className="text-xs text-muted-foreground">Assigned to: {station.lockedFor}</p>
-                )}
-              </div>
-            )}
-
-            {station.currentSession && (
-              <div className="p-4 bg-error/10 border border-error/30 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2">
-                    <User className="w-4 h-4 text-error" />
-                    <span className="font-gaming font-semibold text-error text-sm">
-                      {station.currentSession.customerName}
-                    </span>
-                  </div>
-                  <span className="text-accent font-gaming font-bold text-sm">
-                    {formatTime(station.currentSession.timeRemaining)}
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Started: {new Date(station.currentSession.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </div>
-            )}
+        {/* Body */}
+        <div className="p-4 space-y-3">
+          {/* Specs */}
+          <div className="text-sm text-muted-foreground">
+            <strong>Specs:</strong> {station.specifications}
           </div>
 
-          {/* Quick Time Packs - NEW */}
-          {station.status === 'AVAILABLE' && !station.isLocked && !showSessionForm && !showLockForm && (
-            <div className="px-4 sm:px-6">
-              <div className="p-3 bg-accent/10 border border-accent/30 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-gaming font-semibold text-accent text-sm flex items-center">
-                    <Package className="w-3 h-3 mr-1" />
-                    QUICK PACKS
-                  </h4>
+          {/* Lock Info */}
+          {station.isLocked && (
+            <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
+              <Lock className="w-4 h-4 inline mr-2 text-yellow-600" />
+              Locked for: {station.lockedFor}
+            </div>
+          )}
+
+          {/* Session Info */}
+          {station.currentSession && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded">
+              <div className="flex justify-between">
+                <span>
+                  <User className="w-4 h-4 inline mr-1" />
+                  {station.currentSession.customerName}
+                </span>
+                <span className="font-bold">
+                  {formatTime(station.currentSession.timeRemaining)}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Started:{" "}
+                {new Date(
+                  station.currentSession.startTime
+                ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            </div>
+          )}
+
+          {/* Quick Packs */}
+          {station.status === "AVAILABLE" && !station.isLocked && !showSessionForm && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Quick Packs</h4>
+              <div className="grid grid-cols-5 gap-1">
+                {quickTimePacks.map((pack) => (
                   <Button
-                    variant="ghost"
+                    key={pack.minutes}
+                    onClick={() => handleQuickSession(pack)}
+                    variant="outline"
                     size="sm"
-                    onClick={() => setShowShortcuts(!showShortcuts)}
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    className="flex-col h-12"
                   >
-                    <Keyboard className="w-3 h-3" />
+                    <div className="font-bold">{pack.label}</div>
+                    <div className="text-xs">₹{pack.price}</div>
                   </Button>
-                </div>
-                <div className="grid grid-cols-5 gap-1">
-                  {quickTimePacks.map((pack, index) => (
-                    <Button
-                      key={pack.minutes}
-                      onClick={() => handleQuickSession(pack)}
-                      variant="outline"
-                      size="sm"
-                      className="flex-col h-12 p-1 text-xs border-accent/30 hover:bg-accent/20 hover:border-accent relative"
-                    >
-                      <div className="absolute top-0 right-0 text-[10px] text-muted-foreground font-mono">
-                        {pack.hotkey}
-                      </div>
-                      <div className="font-gaming font-bold text-[10px] text-accent">
-                        {pack.label}
-                      </div>
-                      <div className="text-[9px] text-muted-foreground">
-                        ₹{pack.price}
-                      </div>
-                    </Button>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Quick Add Time for Active Sessions */}
-          {station.status === 'OCCUPIED' && station.currentSession && !showSessionForm && !showLockForm && (
-            <div className="px-4 sm:px-6">
-              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
-                <h4 className="font-gaming font-semibold text-primary text-sm flex items-center mb-2">
-                  <Plus className="w-3 h-3 mr-1" />
-                  ADD TIME
-                </h4>
-                <div className="grid grid-cols-4 gap-1">
-                  {[15, 30, 60, 120].map((minutes) => (
-                    <Button
-                      key={minutes}
-                      onClick={() => handleAddQuickTime(minutes)}
-                      variant="outline"
-                      size="sm"
-                      className="flex-col h-10 p-1 text-xs border-primary/30 hover:bg-primary/20 hover:border-primary"
-                    >
-                      <div className="font-gaming font-bold text-[10px] text-primary">
-                        +{minutes < 60 ? `${minutes}m` : `${minutes/60}h`}
-                      </div>
-                      <div className="text-[9px] text-muted-foreground">
-                        ₹{(150 * minutes / 60).toFixed(0)}
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Keyboard Shortcuts Help */}
-          {showShortcuts && (
-            <div className="px-4 sm:px-6">
-              <div className="p-3 bg-muted/20 border border-muted/30 rounded-lg">
-                <h4 className="font-gaming font-semibold text-foreground text-sm mb-2 flex items-center">
-                  <Keyboard className="w-3 h-3 mr-1" />
-                  SHORTCUTS
-                </h4>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Start Session:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">S</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">End Session:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">E</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Lock/Unlock:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">L/U</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Add 30min:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">+</kbd>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Quick Packs:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">1-5</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Maintenance:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">M</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Help:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">H</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Close:</span>
-                      <kbd className="bg-muted px-1 rounded font-mono">ESC</kbd>
-                    </div>
-                  </div>
-                </div>
+          {/* Add Time */}
+          {station.status === "OCCUPIED" && station.currentSession && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Add Time</h4>
+              <div className="grid grid-cols-4 gap-1">
+                {[15, 30, 60, 120].map((m) => (
+                  <Button
+                    key={m}
+                    onClick={() => handleAddQuickTime(m)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    +{m < 60 ? `${m}m` : `${m / 60}h`} (₹
+                    {(station.hourlyRate * m) / 60})
+                  </Button>
+                ))}
               </div>
             </div>
           )}
 
           {/* Actions */}
-          <div className="p-4 sm:p-6 pt-0 space-y-3 min-h-[180px] transition-all duration-200 ease-in-out">
-            {/* Primary Actions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {/* START SESSION */}
-              <Button
-                onClick={() => setShowSessionForm(true)}
-                className={`btn-gaming font-gaming ${station.status === 'AVAILABLE' && !showSessionForm && !showLockForm ? '' : 'hidden'}`}
-                disabled={station.isLocked}
-              >
-                <Play className="w-4 h-4 mr-2" />
-                START SESSION
-              </Button>
-
-              {/* ASSIGN LOCK */}
-              <Button
-                onClick={() => setShowLockForm(true)}
-                variant="outline"
-                className={`font-gaming ${station.status === 'AVAILABLE' && !showSessionForm && !showLockForm ? '' : 'hidden'}`}
-                disabled={station.isLocked}
-              >
-                <Lock className="w-4 h-4 mr-2" />
-                ASSIGN LOCK
-              </Button>
-
-              {/* END SESSION */}
-              <Button
-                onClick={() => {
-                  onAction(station.id, 'end-session', { sessionId: station.currentSession?.id });
-                  onClose();
-                }}
-                variant="destructive"
-                className={`font-gaming ${station.status === 'OCCUPIED' ? '' : 'hidden'}`}
-              >
-                <Square className="w-4 h-4 mr-2" />
-                END SESSION
-              </Button>
-
-              {/* +30 MIN */}
-              <Button
-                onClick={() => {
-                  onAction(station.id, 'add-time', { sessionId: station.currentSession?.id, minutes: 30 });
-                  onClose();
-                }}
-                variant="secondary"
-                className={`font-gaming ${station.status === 'OCCUPIED' ? '' : 'hidden'}`}
-              >
-                +30 MIN
-              </Button>
-
-              {/* UNDER MAINTENANCE */}
-              <Button
-                variant="secondary"
-                className={`w-full font-gaming col-span-2 ${station.status === 'MAINTENANCE' ? '' : 'hidden'}`}
-                disabled
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                UNDER MAINTENANCE
-              </Button>
-            </div>
-
-            {/* Station Control Actions - NEW */}
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <Button
-                onClick={() => {
-                  onAction(station.id, 'power-off');
-                  onClose();
-                }}
-                variant="outline"
-                size="sm"
-                className="font-gaming text-xs text-error hover:bg-error/10 hover:border-error"
-                disabled={station.status === 'OCCUPIED'}
-              >
-                <Power className="w-3 h-3 mr-1" />
-                POWER OFF
-              </Button>
-
-              <Button
-                onClick={() => {
-                  onAction(station.id, 'restart');
-                  onClose();
-                }}
-                variant="outline"  
-                size="sm"
-                className="font-gaming text-xs"
-                disabled={station.status === 'OCCUPIED'}
-              >
-                <RotateCcw className="w-3 h-3 mr-1" />
-                RESTART
-              </Button>
-
-              <Button
-                onClick={() => {
-                  const newStatus = station.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
-                  onAction(station.id, 'toggle-maintenance', { status: newStatus });
-                  onClose();
-                }}
-                variant="outline"
-                size="sm"
-                className={`font-gaming text-xs ${
-                  station.status === 'MAINTENANCE' 
-                    ? 'text-accent hover:bg-accent/10 hover:border-accent' 
-                    : 'text-warning hover:bg-warning/10 hover:border-warning'
-                }`}
-                disabled={station.status === 'OCCUPIED'}
-              >
-                {station.status === 'MAINTENANCE' ? (
-                  <>
-                    <Wifi className="w-3 h-3 mr-1" />
-                    ENABLE
-                  </>
-                ) : (
-                  <>
-                    <Wrench className="w-3 h-3 mr-1" />
-                    MAINTENANCE
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {/* Secondary Actions */}
-            <div className="flex gap-2">
-              {station.isLocked && (
+          <div className="grid grid-cols-2 gap-2">
+            {station.status === "AVAILABLE" && (
+              <>
+                <Button onClick={() => setShowSessionForm(true)}>
+                  <Play className="w-4 h-4 mr-2" /> Start Session
+                </Button>
                 <Button
-                  onClick={() => {
-                    onAction(station.id, 'unlock');
-                    onClose();
-                  }}
                   variant="outline"
-                  size="sm"
-                  className="flex-1 font-gaming text-xs"
+                  onClick={() => setShowLockForm(true)}
                 >
-                  <Unlock className="w-3 h-3 mr-1" />
-                  UNLOCK
+                  <Lock className="w-4 h-4 mr-2" /> Assign Lock
                 </Button>
-              )}
-
-              {station.status === 'OCCUPIED' && (
+              </>
+            )}
+            {station.status === "OCCUPIED" && (
+              <>
                 <Button
-                  onClick={() => {
-                    onAction(station.id, 'raise-hand');
-                    onClose();
-                  }}
-                  variant={station.handRaised ? "default" : "outline"}
-                  size="sm"
-                  className={`font-gaming text-xs ${station.handRaised ? 'bg-error text-error-foreground' : 'text-error hover:bg-error/10 hover:border-error'}`}
+                  variant="destructive"
+                  onClick={() =>
+                    onAction(station.id, "end-session", {
+                      sessionId: station.currentSession?.id,
+                    })
+                  }
                 >
-                  <Hand className="w-3 h-3 mr-1" />
-                  {station.handRaised ? 'LOWER' : 'RAISE'}
+                  <Square className="w-4 h-4 mr-2" /> End Session
                 </Button>
-              )}
-
-              <Button
-                onClick={() => {
-                  onDelete();
-                  onClose();
-                }}
-                variant="outline"
-                size="sm"
-                className="text-error hover:bg-error/10 hover:border-error font-gaming text-xs px-3"
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    onAction(station.id, "add-time", {
+                      sessionId: station.currentSession?.id,
+                      minutes: 30,
+                    })
+                  }
+                >
+                  +30 Min
+                </Button>
+              </>
+            )}
           </div>
 
-          {/* Session Start Form */}
+          {/* Forms */}
           {showSessionForm && (
-            <div className="px-4 sm:px-6 pb-6">
-              <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg animate-slide-in-gaming">
-                <h4 className="font-gaming font-semibold text-primary mb-3">
-                  START NEW SESSION
-                </h4>
-                <div className="space-y-3">
-                  <Input
-                    placeholder="Player name"
-                    value={sessionData.customerName}
-                    onChange={(e) => setSessionData({ ...sessionData, customerName: e.target.value })}
-                    className="bg-input/50 border-primary/30 font-gaming"
-                  />
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={sessionData.timeMinutes}
-                      onChange={(e) => setSessionData({ ...sessionData, timeMinutes: parseInt(e.target.value) })}
-                      className="bg-input/50 border border-primary/30 font-gaming h-9 text-sm rounded-md px-3 text-foreground"
-                    >
-                      {allowedTimes.map(minutes => (
-                        <option key={minutes} value={minutes}>
-                          {minutes < 60 ? `${minutes} min` : `${minutes / 60} hour${minutes > 60 ? 's' : ''}`}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder={`Prepaid ₹ (${(150 * sessionData.timeMinutes / 60).toFixed(0)} calc.)`}
-                        value={sessionData.prepaidAmount}
-                        onChange={(e) => setSessionData({ ...sessionData, prepaidAmount: parseFloat(e.target.value) })}
-                        className="bg-input/50 border-primary/30 font-gaming pl-8"
-                      />
-                      <CreditCard className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleStartSession}
-                      className="flex-1 btn-gaming font-gaming"
-                    >
-                      <Zap className="w-4 h-4 mr-2" />
-                      LAUNCH
-                    </Button>
-                    <Button
-                      onClick={() => setShowSessionForm(false)}
-                      variant="secondary"
-                      className="flex-1 font-gaming"
-                    >
-                      CANCEL
-                    </Button>
-                  </div>
-                </div>
+            <div className="space-y-2 p-3 border rounded bg-primary/10">
+              <h4 className="font-semibold">Start New Session</h4>
+              <Input
+                placeholder="Player name"
+                value={sessionData.customerName}
+                onChange={(e) =>
+                  setSessionData({
+                    ...sessionData,
+                    customerName: e.target.value,
+                  })
+                }
+              />
+              <select
+                value={sessionData.timeMinutes}
+                onChange={(e) =>
+                  setSessionData({
+                    ...sessionData,
+                    timeMinutes: parseInt(e.target.value),
+                  })
+                }
+              >
+                {allowedTimes.map((m) => (
+                  <option key={m} value={m}>
+                    {m < 60 ? `${m} min` : `${m / 60} hr`}
+                  </option>
+                ))}
+              </select>
+              <Input
+                type="number"
+                placeholder="Prepaid Amount"
+                value={sessionData.prepaidAmount}
+                onChange={(e) =>
+                  setSessionData({
+                    ...sessionData,
+                    prepaidAmount: parseFloat(e.target.value),
+                  })
+                }
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleStartSession}>
+                  <Zap className="w-4 h-4 mr-2" /> Launch
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowSessionForm(false)}
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           )}
 
-          {/* Lock Assignment Form */}
           {showLockForm && (
-            <div className="px-4 sm:px-6 pb-6">
-              <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg animate-slide-in-gaming">
-                <h4 className="font-gaming font-semibold text-warning mb-3">
-                  ASSIGN STATION LOCK
-                </h4>
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Input
-                      placeholder="Assign to user"
-                      value={lockData.assignedUser}
-                      onChange={(e) => setLockData({ ...lockData, assignedUser: e.target.value })}
-                      className="bg-input/50 border-warning/30 font-gaming pl-8"
-                    />
-                    <UserPlus className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  </div>
-
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Prepaid amount ₹"
-                      value={lockData.prepaidAmount}
-                      onChange={(e) => setLockData({ ...lockData, prepaidAmount: parseFloat(e.target.value) })}
-                      className="bg-input/50 border-warning/30 font-gaming pl-8"
-                    />
-                    <CreditCard className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  </div>
-
-                  <Input
-                    placeholder="Notes (optional)"
-                    value={lockData.notes}
-                    onChange={(e) => setLockData({ ...lockData, notes: e.target.value })}
-                    className="bg-input/50 border-warning/30 font-gaming"
-                  />
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleLockStation}
-                      className="flex-1 bg-warning text-warning-foreground hover:bg-warning/90 font-gaming"
-                    >
-                      <Lock className="w-4 h-4 mr-2" />
-                      ASSIGN & LOCK
-                    </Button>
-                    <Button
-                      onClick={() => setShowLockForm(false)}
-                      variant="secondary"
-                      className="flex-1 font-gaming"
-                    >
-                      CANCEL
-                    </Button>
-                  </div>
-                </div>
+            <div className="space-y-2 p-3 border rounded bg-yellow-50">
+              <h4 className="font-semibold">Assign Lock</h4>
+              <Input
+                placeholder="Assign to user"
+                value={lockData.assignedUser}
+                onChange={(e) =>
+                  setLockData({ ...lockData, assignedUser: e.target.value })
+                }
+              />
+              <Input
+                type="number"
+                placeholder="Prepaid Amount"
+                value={lockData.prepaidAmount}
+                onChange={(e) =>
+                  setLockData({
+                    ...lockData,
+                    prepaidAmount: parseFloat(e.target.value),
+                  })
+                }
+              />
+              <Input
+                placeholder="Notes"
+                value={lockData.notes}
+                onChange={(e) =>
+                  setLockData({ ...lockData, notes: e.target.value })
+                }
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleLockStation}>
+                  <Lock className="w-4 h-4 mr-2" /> Lock
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowLockForm(false)}
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           )}
+
+          {/* Power & Maintenance */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAction(station.id, "power-off")}
+              disabled={station.status === "OCCUPIED"}
+            >
+              <Power className="w-4 h-4 mr-2" /> Power Off
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAction(station.id, "restart")}
+              disabled={station.status === "OCCUPIED"}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" /> Restart
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                onAction(station.id, "toggle-maintenance", {
+                  status:
+                    station.status === "MAINTENANCE"
+                      ? "AVAILABLE"
+                      : "MAINTENANCE",
+                })
+              }
+              disabled={station.status === "OCCUPIED"}
+            >
+              {station.status === "MAINTENANCE" ? (
+                <>
+                  <Wifi className="w-4 h-4 mr-2" /> Enable
+                </>
+              ) : (
+                <>
+                  <Wrench className="w-4 h-4 mr-2" /> Maintenance
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Delete */}
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              onDelete();
+              onClose();
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Delete Station
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

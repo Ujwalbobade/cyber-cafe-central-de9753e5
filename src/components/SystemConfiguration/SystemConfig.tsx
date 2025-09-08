@@ -235,7 +235,7 @@ const SystemConfig: React.FC<SystemConfigProps> = ({
             <TabsContent value="night" className="space-y-4">
               <Card className="card-gaming p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <Label className="font-gaming text-primary">NIGHT PASS CONFIGURATION</Label>
+                  <Label className="font-gaming text-primary">NIGHT PASS </Label>
                   <Moon className="w-4 h-4 text-accent" />
                 </div>
 
@@ -453,7 +453,7 @@ const SystemConfig: React.FC<SystemConfigProps> = ({
           </Button>
           <Button onClick={handleSave} className="btn-gaming">
             <Save className="w-4 h-4 mr-2" />
-            SAVE CONFIGURATION
+            SAVE 
           </Button>
         </div>
       </DialogContent>
