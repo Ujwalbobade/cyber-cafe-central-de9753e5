@@ -5,12 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Palette, X } from 'lucide-react';
 
 interface ColorPickerProps {
+  color: { r: number; g: number; b: number };
   onColorChange: (color: { r: number; g: number; b: number }) => void;
-  initialColor?: { r: number; g: number; b: number };
 }
 
-const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor = { r: 0, g: 234, b: 255 } }) => {
-  const [color, setColor] = useState(initialColor);
+const ColorPicker: React.FC<ColorPickerProps> = ({ color, onColorChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -21,50 +20,23 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
         setIsOpen(false);
       }
     };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  useEffect(() => {
-    const savedColor = localStorage.getItem('theme-color');
-    if (savedColor) {
-      try {
-        const parsed = JSON.parse(savedColor);
-        setColor(parsed);
-        onColorChange(parsed);
-      } catch (error) {
-        console.error('Failed to parse saved color:', error);
-      }
-    }
-  }, [onColorChange]);
-
-  const updateColor = (newColor: { r: number; g: number; b: number }) => {
-    setColor(newColor);
-    onColorChange(newColor);
-    localStorage.setItem('theme-color', JSON.stringify(newColor));
-  };
-
-  const rgbToHex = (r: number, g: number, b: number) => {
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-  };
+  const rgbToHex = (r: number, g: number, b: number) =>
+    `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
+    return result
+      ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
+      : null;
   };
 
   const handleNativeColorChange = (hex: string) => {
     const rgb = hexToRgb(hex);
-    if (rgb) {
-      updateColor(rgb);
-    }
+    if (rgb) onColorChange(rgb);
   };
 
   const presetColors = [
@@ -85,16 +57,16 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
       >
         <Palette className="w-4 h-4" />
         Theme Color
-        <div 
-          className="w-5 h-5 rounded-full border-2 border-border shadow-sm" 
-          style={{ backgroundColor: `rgb(${color.r}, ${color.g}, ${color.b})` }} 
+        <div
+          className="w-5 h-5 rounded-full border-2 border-border shadow-sm"
+          style={{ backgroundColor: `rgb(${color.r}, ${color.g}, ${color.b})` }}
         />
       </Button>
 
       {isOpen && (
-        <Card 
+        <Card
           ref={cardRef}
-          className="absolute top-12 right-0 z-50 p-6 w-80 card-gaming shadow-2xl border-2 border-primary/20"
+          className="absolute top-full mt-2 left-0 z-50 p-6 w-80 card-gaming shadow-2xl border-2 border-primary/20"
         >
           <div className="space-y-6">
             {/* Header */}
@@ -109,7 +81,6 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            
 
             {/* Native Color Picker */}
             <div className="space-y-2">
@@ -130,16 +101,16 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ onColorChange, initialColor =
                 {presetColors.map((preset, index) => (
                   <button
                     key={index}
-                    onClick={() => updateColor(preset)}
+                    onClick={() => onColorChange(preset)}
                     className="group flex flex-col items-center gap-2 p-3 rounded-lg border border-border hover:border-primary/50 transition-all duration-200 hover:shadow-glow-primary"
                     title={preset.name}
                   >
-                    <div 
-                      className="w-8 h-8 rounded-full border-2 border-background shadow-lg group-hover:scale-110 transition-transform duration-200" 
-                      style={{ 
+                    <div
+                      className="w-8 h-8 rounded-full border-2 border-background shadow-lg group-hover:scale-110 transition-transform duration-200"
+                      style={{
                         backgroundColor: `rgb(${preset.r}, ${preset.g}, ${preset.b})`,
-                        boxShadow: `0 4px 15px rgb(${preset.r}, ${preset.g}, ${preset.b}, 0.4)`
-                      }} 
+                        boxShadow: `0 4px 15px rgb(${preset.r}, ${preset.g}, ${preset.b}, 0.4)`,
+                      }}
                     />
                     <span className="text-xs font-gaming text-center text-muted-foreground group-hover:text-foreground transition-colors">
                       {preset.name}
