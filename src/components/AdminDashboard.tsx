@@ -35,6 +35,7 @@ import AddStationModal from './Station/AddStationModal';
 import StationGridView from './Station/StationGridView';
 import StationTableView from './Station/StationTableView';
 import StationPopup from './Station/StationPopup';
+import SessionPopup from "./Session/SessionPopup";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -144,16 +145,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           setStations((prev) =>
             prev.map((station) =>
               station.id === msg.stationId
-                ? { 
-                    ...station, 
-                    status: msg.status === "COMPLETED" ? "AVAILABLE" : "OCCUPIED",
-                    currentSession: msg.status === "COMPLETED" ? undefined : {
-                      id: msg.sessionId,
-                      customerName: station.currentSession?.customerName || "Customer",
-                      startTime: new Date(msg.currentTime).toISOString(),
-                      timeRemaining: Math.max(0, Math.floor((msg.endTime - Date.now()) / 60000))
-                    }
+                ? {
+                  ...station,
+                  status: msg.status === "COMPLETED" ? "AVAILABLE" : "OCCUPIED",
+                  currentSession: msg.status === "COMPLETED" ? undefined : {
+                    id: msg.sessionId,
+                    customerName: station.currentSession?.customerName || "Customer",
+                    startTime: new Date(msg.currentTime).toISOString(),
+                    timeRemaining: Math.max(0, Math.floor((msg.endTime - Date.now()) / 60000))
                   }
+                }
                 : station
             )
           );
@@ -216,6 +217,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [stationToDelete, setStationToDelete] = useState<Station | null>(null);
+const [showSessionPopup, setShowSessionPopup] = useState(false)
 
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
@@ -256,6 +258,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       alert('Failed to create station');
     }
   };
+  const handleStationClick1 = (station: Station) => {
+  setSelectedStation(station);
+  setShowSessionPopup(true);
+};
 
   const handleDeleteStation = async (stationId: string) => {
     try {
@@ -851,15 +857,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             ) : stationView === 'grid' ? (
               <Card className="card-gaming">
                 <StationGridView
-                  stations={stations.filter(station => {
-                    if (stationFilter === 'active') return station.status === 'OCCUPIED';
-                    if (stationFilter === 'inactive') return station.status !== 'OCCUPIED';
-                    return true;
+                  stations={stations.filter((station) => {
+                    if (stationFilter === "active") return station.status === "OCCUPIED"
+                    if (stationFilter === "inactive") return station.status !== "OCCUPIED"
+                    return true
                   })}
-                  onStationClick={handleStationClick}
+                  onStationClick={handleStationClick1}
                   onStationAction={handleStationAction}
                   updateStationStatus={updateStationStatus}
                 />
+
+                {/* Session Popup */}
+                {selectedStation && (
+                  <SessionPopup
+                    station={selectedStation}
+                    isOpen={showSessionPopup}
+                    onClose={() => setShowSessionPopup(false)}
+                    onAction={handleStationAction}
+                    onDelete={() => console.log("Delete clicked")}
+                  />
+                )}
               </Card>
             ) : (
               <Card className="card-gaming p-6">
