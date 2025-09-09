@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Monitor, Gamepad2, Lock, Unlock, Play, Pause, Clock, Trash2, Edit } from 'lucide-react';
+import { Monitor, Gamepad2, Lock, Unlock, Play, Clock, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import AdminWebSocketService from '../../services/Websockets';
+import AdminWebSocketService from '../../../services/Websockets';
 
 interface Station {
   id: string;
@@ -18,7 +18,6 @@ interface Station {
   type: 'PC' | 'PS5' | 'PS4';
   status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
   hourlyRate: number;
-  ipAddress?: string;
   specifications: string;
   isLocked: boolean;
   lockedFor?: string;
@@ -56,15 +55,15 @@ const StationTableView: React.FC<StationTableViewProps> = ({
         updateStationStatus(data.stationId, data.status);
       }
       if (data.type === "STATION_UPDATE" && data.station) {
-        // Handle real-time station updates
         updateStationStatus(data.station.id, data.station.status);
       }
     };
 
     return () => {
-      // Don't disconnect here as other components might be using it
+      // keep WS alive for other components
     };
   }, [wsService, updateStationStatus]);
+
   const getStatusBadge = (station: Station) => {
     if (station.isLocked) {
       return (
@@ -132,7 +131,6 @@ const StationTableView: React.FC<StationTableViewProps> = ({
             <TableHead className="font-gaming text-foreground">Status</TableHead>
             <TableHead className="font-gaming text-foreground">Rate</TableHead>
             <TableHead className="font-gaming text-foreground">Session</TableHead>
-            <TableHead className="font-gaming text-foreground">IP Address</TableHead>
             <TableHead className="font-gaming text-foreground text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -152,9 +150,7 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                   <span className="text-sm font-gaming">{station.type}</span>
                 </div>
               </TableCell>
-              <TableCell>
-                {getStatusBadge(station)}
-              </TableCell>
+              <TableCell>{getStatusBadge(station)}</TableCell>
               <TableCell>
                 <span className="font-gaming text-sm">₹{station.hourlyRate}/hr</span>
               </TableCell>
@@ -172,11 +168,6 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                 ) : (
                   <span className="text-sm text-muted-foreground">-</span>
                 )}
-              </TableCell>
-              <TableCell>
-                <span className="text-sm font-mono text-muted-foreground">
-                  {station.ipAddress || '-'}
-                </span>
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end space-x-1">

@@ -1,8 +1,8 @@
 import React, { useEffect } from "react"
 import { Monitor, Gamepad2, Lock, Unlock, Hand } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import AdminWebSocketService from "../../services/Websockets"
-import SessionPopup from "../Session/SessionPopup"
+import AdminWebSocketService from "../../../services/Websockets"
+import SessionPopup from "../../Session/SessionPopup"
 
 interface Station {
   id: string
@@ -37,6 +37,7 @@ const StationGridView: React.FC<StationGridViewProps> = ({
   updateStationStatus,
 }) => {
   const stationWS = AdminWebSocketService.getInstance()
+    const [selectedStation, setSelectedStation] = React.useState<Station | null>(null)
 
   useEffect(() => {
     stationWS.onMessage = (data) => {
@@ -46,6 +47,11 @@ const StationGridView: React.FC<StationGridViewProps> = ({
     }
     return () => stationWS.disconnect()
   }, [stationWS, updateStationStatus])
+
+   const handleStationClick = (station: Station) => {
+    setSelectedStation(station) // ✅ open popup
+    onStationClick(station)
+  }
 
   const getStationColor = (station: Station) => {
     if (station.isLocked) return "bg-warning/20 border-warning shadow-glow-warning"
@@ -93,7 +99,7 @@ const StationGridView: React.FC<StationGridViewProps> = ({
             animate-fade-in group
           `}
           style={{ animationDelay: `${index * 0.05}s` }}
-          onClick={() => onStationClick(station)} // ✅ delegate to parent
+          onClick={() => handleStationClick(station)}  // ✅ delegate to parent
         >
           {/* Station Type Icon */}
           <div className="absolute -top-1 -right-1 w-5 h-5 bg-card rounded-full flex items-center justify-center border border-primary/30">
@@ -170,6 +176,16 @@ const StationGridView: React.FC<StationGridViewProps> = ({
           )}
         </div>
       ))}
+      {/* Session Popup (same as StationCard) */}
+      {selectedStation && (
+        <SessionPopup
+          station={selectedStation}
+          isOpen={!!selectedStation}
+          onClose={() => setSelectedStation(null)}
+          onAction={onStationAction}
+          onDelete={() => onStationAction(selectedStation.id, "delete")}
+        />
+      )}
     </div>
   )
 }

@@ -29,12 +29,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useNavigate } from 'react-router-dom';
 import DeleteConfirmationDialog from '@/components/ui/delete-confirmation-dialog';
 import UserInfoCard from '@/components/ui/user-info-card';
-import StationCard from './Station/StationCard';
+import StationCard from './Station/views/StationCardView';
 import StatsCard from './StatsCard';
 import AddStationModal from './Station/AddStationModal';
-import StationGridView from './Station/StationGridView';
-import StationTableView from './Station/StationTableView';
-import StationPopup from './Station/StationPopup';
+import StationGridView from './Station/views/StationGridView';
+import StationTableView from './Station/views/StationTableView';
 import SessionPopup from "./Session/SessionPopup";
 import {
   DropdownMenu,
@@ -217,7 +216,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [stationToDelete, setStationToDelete] = useState<Station | null>(null);
-const [showSessionPopup, setShowSessionPopup] = useState(false)
+  const [showSessionPopup, setShowSessionPopup] = useState(false)
 
   const [cafeName, setCafeName] = useState(() => {
     return localStorage.getItem('cafe-name') || 'CYBER LOUNGE';
@@ -259,9 +258,8 @@ const [showSessionPopup, setShowSessionPopup] = useState(false)
     }
   };
   const handleStationClick1 = (station: Station) => {
-  setSelectedStation(station);
-  setShowSessionPopup(true);
-};
+    setSelectedStation(station);
+  };
 
   const handleDeleteStation = async (stationId: string) => {
     try {
@@ -665,27 +663,54 @@ const [showSessionPopup, setShowSessionPopup] = useState(false)
 
             {/* Statistics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatsCard
-                title="TOTAL RIGS"
-                value={stats.totalStations}
-                icon={<Monitor className="w-8 h-8" />}
-                gradient="bg-gradient-primary"
-                change="+2 this week"
-              />
-              <StatsCard
-                title="AVAILABLE"
-                value={stats.availableStations}
-                icon={<Zap className="w-8 h-8" />}
-                gradient="bg-gradient-to-r from-accent to-accent/80"
-                change="Ready for action"
-              />
-              <StatsCard
-                title="ACTIVE SESSIONS"
-                value={stats.occupiedStations}
-                icon={<Users className="w-8 h-8" />}
-                gradient="bg-gradient-secondary"
-                change={`${((stats.occupiedStations / stats.totalStations) * 100).toFixed(0)}% utilization`}
-              />
+              <div
+                onClick={() => {
+                  setActiveTab("stations");
+                  setStationFilter("all");
+                }}
+                className="cursor-pointer"
+              >
+                <StatsCard
+                  title="TOTAL RIGS"
+                  value={stats.totalStations}
+                  icon={<Monitor className="w-8 h-8" />}
+                  gradient="bg-gradient-primary"
+                  change="+2 this week"
+                />
+              </div>
+
+              <div
+                onClick={() => {
+                  setActiveTab("stations");
+                  setStationFilter("inactive"); // AVAILABLE = not occupied
+                }}
+                className="cursor-pointer"
+              >
+                <StatsCard
+                  title="AVAILABLE"
+                  value={stats.availableStations}
+                  icon={<Zap className="w-8 h-8" />}
+                  gradient="bg-gradient-to-r from-accent to-accent/80"
+                  change="Ready for action"
+                />
+              </div>
+
+              <div
+                onClick={() => {
+                  setActiveTab("stations");
+                  setStationFilter("active");
+                }}
+                className="cursor-pointer"
+              >
+                <StatsCard
+                  title="ACTIVE SESSIONS"
+                  value={stats.occupiedStations}
+                  icon={<Users className="w-8 h-8" />}
+                  gradient="bg-gradient-secondary"
+                  change={`${((stats.occupiedStations / stats.totalStations) * 100).toFixed(0)}% utilization`}
+                />
+              </div>
+
               <StatsCard
                 title="CREDITS EARNED"
                 value={`₹${stats.totalRevenue.toFixed(0)}`}
@@ -906,13 +931,6 @@ const [showSessionPopup, setShowSessionPopup] = useState(false)
       )}
 
       {/* Station Popup */}
-      <StationPopup
-        station={selectedStation}
-        isOpen={showStationPopup}
-        onClose={handleCloseStationPopup}
-        onAction={handleStationAction}
-        onDelete={() => selectedStation && showDeleteConfirmation(selectedStation)}
-      />
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog

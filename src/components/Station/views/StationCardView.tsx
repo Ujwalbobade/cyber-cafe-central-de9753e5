@@ -17,8 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import AdminWebSocketService from "../../services/Websockets";
-import SessionPopup from "../Session/SessionPopup";
+import AdminWebSocketService from "../../../services/Websockets";
+import SessionPopup from "../../Session/SessionPopup";
 
 //
 // -------------------- Interfaces --------------------
