@@ -37,6 +37,27 @@ interface SessionPopupProps {
   userRole: "admin" | "moderator" | "viewer";
 }
 
+type Pack = {
+  label: string;
+  minutes: number;
+  price: number;
+  category: "quick" | "custom";
+};
+
+// ---------- Packs ----------
+const packs: Pack[] = [
+  // Quick Packs
+  { label: "15m", minutes: 15, price: 37.5, category: "quick" },
+  { label: "30m", minutes: 30, price: 75, category: "quick" },
+  { label: "1h", minutes: 60, price: 150, category: "quick" },
+  { label: "2h", minutes: 120, price: 300, category: "quick" },
+  { label: "4h", minutes: 240, price: 600, category: "quick" },
+
+  // Custom Packs
+  { label: "Night Pass", minutes: 480, price: 900, category: "custom" }, // 8h
+  { label: "Day Pass", minutes: 720, price: 1300, category: "custom" }, // 12h
+  { label: "Weekend Pass", minutes: 1440, price: 2500, category: "custom" }, // 24h
+];
 // ---------- Permissions ----------
 const permissions = {
   admin: {
@@ -92,6 +113,29 @@ const formatTime = (minutes: number) => {
   return `${hours}:${mins.toString().padStart(2, "0")}`;
 };
 
+const PackGrid: React.FC<{
+  title: string;
+  packs: Pack[];
+  onSelect: (pack: Pack) => void;
+}> = ({ title, packs, onSelect }) => (
+  <div className="mb-4">
+    <h4 className="text-sm font-semibold mb-2">{title}</h4>
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {packs.map((pack) => (
+        <Button
+          key={pack.label}
+          onClick={() => onSelect(pack)}
+          variant="outline"
+          size="sm"
+          className="flex flex-col h-14"
+        >
+          <div className="font-bold">{pack.label}</div>
+          <div className="text-xs">₹{pack.price}</div>
+        </Button>
+      ))}
+    </div>
+  </div>
+);
 // ---------- Component ----------
 const SessionPopup: React.FC<SessionPopupProps> = ({
   station,
@@ -237,29 +281,23 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
               </p>
             </div>
           )}
-
-          {/* Quick Packs */}
+          {/* Packs Section */}
           {station.status === "AVAILABLE" &&
             !station.isLocked &&
             !showSessionForm &&
             rolePerms.canStartSession && (
-              <div className="mb-3">
-                <h4 className="text-sm font-semibold mb-2">Quick Packs</h4>
-                <div className="grid grid-cols-5 gap-1">
-                  {quickTimePacks.map((pack) => (
-                    <Button
-                      key={pack.minutes}
-                      onClick={() => handleQuickSession(pack)}
-                      variant="outline"
-                      size="sm"
-                      className="flex-col h-12"
-                    >
-                      <div className="font-bold">{pack.label}</div>
-                      <div className="text-xs">₹{pack.price}</div>
-                    </Button>
-                  ))}
-                </div>
-              </div>
+              <>
+                <PackGrid
+                  title="Quick Packs"
+                  packs={packs.filter((p) => p.category === "quick")}
+                  onSelect={handleQuickSession}
+                />
+                <PackGrid
+                  title="Custom Packs"
+                  packs={packs.filter((p) => p.category === "custom")}
+                  onSelect={handleQuickSession}
+                />
+              </>
             )}
 
           {/* Add Time */}
