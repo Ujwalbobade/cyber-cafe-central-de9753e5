@@ -31,10 +31,11 @@ import DeleteConfirmationDialog from '@/components/ui/delete-confirmation-dialog
 import UserInfoCard from '@/components/ui/user-info-card';
 import StationCard from './Station/views/StationCardView';
 import StatsCard from './StatsCard';
-import AddStationModal from './Station/AddStationModal';
 import StationGridView from './Station/views/StationGridView';
 import StationTableView from './Station/views/StationTableView';
 import SessionPopup from "./Session/SessionPopup";
+import StationModal from './Station/StationModal';
+import { Station } from "@/components/Types/Stations";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -70,24 +71,7 @@ interface User {
   loginTime?: string;
 }
 
-interface Station {
-  id: string;
-  name: string;
-  type: 'PC' | 'PS5' | 'PS4';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
-  hourlyRate: number;
-  ipAddress?: string;
-  specifications: string;
-  isLocked: boolean;
-  lockedFor?: string;
-  handRaised?: boolean;
-  currentSession?: {
-    id: string;
-    customerName: string;
-    startTime: string;
-    timeRemaining: number;
-  };
-}
+
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const navigate = useNavigate();
@@ -228,6 +212,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     availableStations: stations.filter(s => s.status === 'AVAILABLE').length,
     occupiedStations: stations.filter(s => s.status === 'OCCUPIED').length,
     maintenanceStations: stations.filter(s => s.status === 'MAINTENANCE').length,
+    offlineStations: stations.filter(s => s.status === 'OFFLINE').length,
     totalRevenue: stations
       .filter(s => s.currentSession)
       .reduce((sum, station) => sum + (station.hourlyRate * 0.5), 0)
@@ -875,6 +860,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         onAction={handleStationAction}
                         onDelete={() => showDeleteConfirmation(station)}
                         updateStationStatus={updateStationStatus}
+                        currentUserRole={currentUser.role as "admin"| "moderator"} // ✅ fix
                       />
                     </div>
                   ))}
@@ -890,6 +876,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   onStationClick={handleStationClick1}
                   onStationAction={handleStationAction}
                   updateStationStatus={updateStationStatus}
+                  currentUserRole={currentUser.role as "admin" | "moderator"} // ✅ fix
                 />
 
                 {/* Session Popup */}
@@ -900,6 +887,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     onClose={() => setShowSessionPopup(false)}
                     onAction={handleStationAction}
                     onDelete={() => console.log("Delete clicked")}
+                    userRole={currentUser.role as "admin" | "moderator" | "viewer"} // ✅ fix
                   />
                 )}
               </Card>
@@ -915,6 +903,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   onStationAction={handleStationAction}
                   onDelete={showDeleteConfirmation}
                   updateStationStatus={updateStationStatus}
+                  currentUserRole={currentUser.role as "admin" | "moderator"} 
                 />
               </Card>
             )}
@@ -924,9 +913,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       {/* Modals */}
       {showAddStation && (
-        <AddStationModal
+        <StationModal
           onClose={() => setShowAddStation(false)}
-          onAdd={handleAddStation}
+          onSave={handleAddStation} // reuse the same handler
         />
       )}
 

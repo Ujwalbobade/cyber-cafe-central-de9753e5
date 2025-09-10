@@ -1,7 +1,16 @@
-import React, { useEffect } from 'react';
-import { Monitor, Gamepad2, Lock, Unlock, Play, Clock, Trash2, Edit } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useState } from "react"
+import {
+  Monitor,
+  Gamepad2,
+  Lock,
+  Unlock,
+  Play,
+  Clock,
+  Trash2,
+  Edit,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -9,117 +18,142 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import AdminWebSocketService from '../../../services/Websockets';
+} from "@/components/ui/table"
+import AdminWebSocketService from "../../../services/Websockets"
+import SessionPopup from "../../Session/SessionPopup"
 
 interface Station {
-  id: string;
-  name: string;
-  type: 'PC' | 'PS5' | 'PS4';
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
-  hourlyRate: number;
-  specifications: string;
-  isLocked: boolean;
-  lockedFor?: string;
-  handRaised?: boolean;
+  id: string
+  name: string
+  type: "PC" | "PS5" | "PS4"
+  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE"| "OFFLINE"
+  hourlyRate: number
+  specifications: string
+  isLocked: boolean
+  lockedFor?: string
+  handRaised?: boolean
   currentSession?: {
-    id: string;
-    customerName: string;
-    startTime: string;
-    timeRemaining: number;
-  };
+    id: string
+    customerName: string
+    startTime: string
+    timeRemaining: number
+  }
 }
 
 interface StationTableViewProps {
-  stations: Station[];
-  onStationClick: (station: Station) => void;
-  onStationAction: (stationId: string, action: string, data?: any) => void;
-  onDelete: (station: Station) => void;
-  updateStationStatus: (stationId: string, status: Station["status"]) => void;
+  stations: Station[]
+  onStationClick: (station: Station) => void
+  onStationAction: (stationId: string, action: string, data?: any) => void
+  onDelete: (station: Station) => void
+  updateStationStatus: (stationId: string, status: Station["status"]) => void
+   currentUserRole: "admin" | "moderator"
 }
 
-const StationTableView: React.FC<StationTableViewProps> = ({ 
-  stations, 
-  onStationClick, 
-  onStationAction, 
+const StationTableView: React.FC<StationTableViewProps> = ({
+  stations,
+  onStationClick,
+  onStationAction,
   onDelete,
-  updateStationStatus
+  updateStationStatus,
+  currentUserRole,
 }) => {
-  const wsService = AdminWebSocketService.getInstance();
+  const wsService = AdminWebSocketService.getInstance()
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null)
+  const [showSessionPopup, setShowSessionPopup] = useState(false)
 
   useEffect(() => {
-    wsService.connect();
-    
+    wsService.connect()
+
     wsService.onMessage = (data) => {
       if (data.type === "STATION_STATUS") {
-        updateStationStatus(data.stationId, data.status);
+        updateStationStatus(data.stationId, data.status)
       }
       if (data.type === "STATION_UPDATE" && data.station) {
-        updateStationStatus(data.station.id, data.station.status);
+        updateStationStatus(data.station.id, data.station.status)
       }
-    };
+    }
 
     return () => {
       // keep WS alive for other components
-    };
-  }, [wsService, updateStationStatus]);
+    }
+  }, [wsService, updateStationStatus])
 
   const getStatusBadge = (station: Station) => {
     if (station.isLocked) {
       return (
-        <Badge variant="outline" className="bg-warning/20 text-warning border-warning/30">
+        <Badge
+          variant="outline"
+          className="bg-warning/20 text-warning border-warning/30"
+        >
           <Lock className="w-3 h-3 mr-1" />
           LOCKED
         </Badge>
-      );
+      )
     }
 
     switch (station.status) {
-      case 'AVAILABLE':
+      case "AVAILABLE":
         return (
-          <Badge variant="outline" className="bg-accent/20 text-accent border-accent/30">
+          <Badge
+            variant="outline"
+            className="bg-accent/20 text-accent border-accent/30"
+          >
             AVAILABLE
           </Badge>
-        );
-      case 'OCCUPIED':
+        )
+      case "OCCUPIED":
         return (
-          <Badge variant="outline" className="bg-error/20 text-error border-error/30">
+          <Badge
+            variant="outline"
+            className="bg-error/20 text-error border-error/30"
+          >
             <Play className="w-3 h-3 mr-1" />
             OCCUPIED
           </Badge>
-        );
-      case 'MAINTENANCE':
+        )
+      case "MAINTENANCE":
         return (
-          <Badge variant="outline" className="bg-secondary/20 text-secondary border-secondary/30">
+          <Badge
+            variant="outline"
+            className="bg-secondary/20 text-secondary border-secondary/30"
+          >
             MAINTENANCE
           </Badge>
-        );
+        )
       default:
         return (
-          <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
+          <Badge
+            variant="outline"
+            className="bg-muted/20 text-muted-foreground border-muted/30"
+          >
             UNKNOWN
           </Badge>
-        );
+        )
     }
-  };
+  }
 
-  const getTypeIcon = (type: Station['type']) => {
+  const getTypeIcon = (type: Station["type"]) => {
     switch (type) {
-      case 'PC':
-        return <Monitor className="w-4 h-4 text-primary" />;
-      case 'PS5':
-      case 'PS4':
-        return <Gamepad2 className="w-4 h-4 text-secondary" />;
+      case "PC":
+        return <Monitor className="w-4 h-4 text-primary" />
+      case "PS5":
+      case "PS4":
+        return <Gamepad2 className="w-4 h-4 text-secondary" />
       default:
-        return <Monitor className="w-4 h-4 text-primary" />;
+        return <Monitor className="w-4 h-4 text-primary" />
     }
-  };
+  }
 
   const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-  };
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+  }
+
+  const handleRowClick = (station: Station) => {
+    setSelectedStation(station)
+    setShowSessionPopup(true)
+  }
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
@@ -131,15 +165,17 @@ const StationTableView: React.FC<StationTableViewProps> = ({
             <TableHead className="font-gaming text-foreground">Status</TableHead>
             <TableHead className="font-gaming text-foreground">Rate</TableHead>
             <TableHead className="font-gaming text-foreground">Session</TableHead>
-            <TableHead className="font-gaming text-foreground text-right">Actions</TableHead>
+            <TableHead className="font-gaming text-foreground text-right">
+              Actions
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {stations.map((station) => (
-            <TableRow 
-              key={station.id} 
+            <TableRow
+              key={station.id}
               className="hover:bg-muted/30 cursor-pointer transition-colors"
-              onClick={() => onStationClick(station)}
+              onClick={() => handleRowClick(station)}
             >
               <TableCell className="font-gaming font-semibold text-foreground">
                 {station.name}
@@ -152,7 +188,9 @@ const StationTableView: React.FC<StationTableViewProps> = ({
               </TableCell>
               <TableCell>{getStatusBadge(station)}</TableCell>
               <TableCell>
-                <span className="font-gaming text-sm">₹{station.hourlyRate}/hr</span>
+                <span className="font-gaming text-sm">
+                  ₹{station.hourlyRate}/hr
+                </span>
               </TableCell>
               <TableCell>
                 {station.currentSession ? (
@@ -176,8 +214,8 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
-                        e.stopPropagation();
-                        onStationAction(station.id, 'unlock');
+                        e.stopPropagation()
+                        onStationAction(station.id, "unlock")
                       }}
                       className="h-8 w-8 p-0 hover:bg-warning/10 hover:text-warning"
                     >
@@ -188,8 +226,8 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
-                        e.stopPropagation();
-                        onStationAction(station.id, 'lock');
+                        e.stopPropagation()
+                        onStationAction(station.id, "lock")
                       }}
                       className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
                     >
@@ -200,8 +238,8 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={(e) => {
-                      e.stopPropagation();
-                      onStationClick(station);
+                      e.stopPropagation()
+                      handleRowClick(station)
                     }}
                     className="h-8 w-8 p-0 hover:bg-secondary/10 hover:text-secondary"
                   >
@@ -211,8 +249,8 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(station);
+                      e.stopPropagation()
+                      onDelete(station)
                     }}
                     className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
                   >
@@ -224,8 +262,20 @@ const StationTableView: React.FC<StationTableViewProps> = ({
           ))}
         </TableBody>
       </Table>
-    </div>
-  );
-};
 
-export default StationTableView;
+      {/* Session Popup */}
+      {selectedStation && (
+        <SessionPopup
+          station={selectedStation}
+          isOpen={showSessionPopup}
+          onClose={() => setShowSessionPopup(false)}
+          onAction={onStationAction}
+          onDelete={() => onDelete(selectedStation)}
+          userRole={currentUserRole} 
+        />
+      )}
+    </div>
+  )
+}
+
+export default StationTableView

@@ -12,6 +12,7 @@ import {
   Wrench,
   Wifi,
   Trash2,
+  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,24 +25,8 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { getSystemConfig } from "@/services/apis/api";
-
-// ---------- Types ----------
-interface Station {
-  id: string;
-  name: string;
-  type: "PC" | "PS5" | "PS4";
-  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE" | "OFFLINE";
-  hourlyRate: number;
-  specifications: string;
-  isLocked: boolean;
-  lockedFor?: string;
-  currentSession?: {
-    id: string;
-    customerName: string;
-    startTime: string;
-    timeRemaining: number;
-  };
-}
+import StationModal from "@/components/Station/StationModal";
+import { Station } from "@/components/Types/Stations";
 
 interface SessionPopupProps {
   station: Station | null;
@@ -49,7 +34,36 @@ interface SessionPopupProps {
   onClose: () => void;
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: (stationId: string) => void;
+  userRole: "admin" | "moderator" | "viewer";
 }
+
+// ---------- Permissions ----------
+const permissions = {
+  admin: {
+    canEdit: true,
+    canDelete: true,
+    canLock: true,
+    canStartSession: true,
+    canPower: true,
+    canMaintenance: true,
+  },
+  moderator: {
+    canEdit: false,
+    canDelete: false,
+    canLock: true,
+    canStartSession: true,
+    canPower: true,
+    canMaintenance: true,
+  },
+  viewer: {
+    canEdit: false,
+    canDelete: false,
+    canLock: false,
+    canStartSession: false,
+    canPower: false,
+    canMaintenance: false,
+  },
+};
 
 // ---------- Helpers ----------
 const quickTimePacks = [
@@ -85,10 +99,12 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
   onClose,
   onAction,
   onDelete,
+  userRole,
 }) => {
   const [allowedTimes, setAllowedTimes] = useState<number[]>([15, 30, 60, 120]);
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [showLockForm, setShowLockForm] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const [sessionData, setSessionData] = useState({
     customerName: "",
@@ -118,8 +134,10 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
     AVAILABLE: { text: "Available", badge: "bg-green-100 text-green-800" },
     OCCUPIED: { text: "In Session", badge: "bg-red-100 text-red-800" },
     MAINTENANCE: { text: "Maintenance", badge: "bg-yellow-100 text-yellow-800" },
-    OFFLINE: { text: "Offline", badge: "bg-gray-200 text-gray-500" },
+    OFFLINE: { text: "Offline", badge: "bg-gray-100 text-gray-800" },
   };
+
+  const rolePerms = permissions[userRole];
 
   const handleStartSession = () => {
     if (sessionData.customerName.trim()) {
@@ -141,7 +159,11 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
 
   const handleQuickSession = useCallback(
     (pack: typeof quickTimePacks[0]) => {
-      if (station.status === "AVAILABLE" && !station.isLocked) {
+      if (
+        station.status === "AVAILABLE" &&
+        !station.isLocked &&
+        rolePerms.canStartSession
+      ) {
         setSessionData({
           customerName: `Quick ${pack.label}`,
           timeMinutes: pack.minutes,
@@ -150,11 +172,11 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
         setShowSessionForm(true);
       }
     },
-    [station]
+    [station, rolePerms]
   );
 
   const handleAddQuickTime = (minutes: number) => {
-    if (station?.currentSession) {
+    if (station?.currentSession && rolePerms.canStartSession) {
       onAction(station.id, "add-time", {
         sessionId: station.currentSession.id,
         minutes,
@@ -165,16 +187,8 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogOverlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse-gaming" />
-          <div
-            className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-secondary/10 rounded-full blur-3xl animate-pulse-gaming"
-            style={{ animationDelay: "1s" }}
-          />
-        </div>
-
-        <DialogContent className="w-full max-w-md card-gaming border-primary/30 relative z-10 animate-slide-in-gaming p-6 bg-background dark:bg-background-dark rounded-2xl shadow-2xl border-2 border-primary/30 transform transition-all duration-300 hover:scale-[1.02] hover:shadow-glow-primary">
+      <DialogOverlay className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <DialogContent className="w-full max-w-md bg-background dark:bg-background-dark rounded-xl shadow-2xl border border-border p-6 animate-fade-in">
           {/* Header */}
           <DialogHeader className="mb-4">
             <div className="flex items-center justify-between">
@@ -227,7 +241,8 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
           {/* Quick Packs */}
           {station.status === "AVAILABLE" &&
             !station.isLocked &&
-            !showSessionForm && (
+            !showSessionForm &&
+            rolePerms.canStartSession && (
               <div className="mb-3">
                 <h4 className="text-sm font-semibold mb-2">Quick Packs</h4>
                 <div className="grid grid-cols-5 gap-1">
@@ -248,38 +263,56 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
             )}
 
           {/* Add Time */}
-          {station.status === "OCCUPIED" && station.currentSession && (
-            <div className="mb-3">
-              <h4 className="text-sm font-semibold mb-2">Add Time</h4>
-              <div className="grid grid-cols-4 gap-1">
-                {[15, 30, 60, 120].map((m) => (
-                  <Button
-                    key={m}
-                    onClick={() => handleAddQuickTime(m)}
-                    size="sm"
-                    variant="outline"
-                  >
-                    +{m < 60 ? `${m}m` : `${m / 60}h`} (₹
-                    {(station.hourlyRate * m) / 60})
-                  </Button>
-                ))}
+          {station.status === "OCCUPIED" &&
+            station.currentSession &&
+            rolePerms.canStartSession && (
+              <div className="mb-3">
+                <h4 className="text-sm font-semibold mb-2">Add Time</h4>
+                <div className="grid grid-cols-4 gap-1">
+                  {[15, 30, 60, 120].map((m) => (
+                    <Button
+                      key={m}
+                      onClick={() => handleAddQuickTime(m)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      +{m < 60 ? `${m}m` : `${m / 60}h`} (₹
+                      {(station.hourlyRate * m) / 60})
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Actions */}
           <div className="grid grid-cols-3 gap-2 mb-3">
             {station.status === "AVAILABLE" && (
               <>
-                <Button onClick={() => setShowSessionForm(true)}>
-                  <Play className="w-4 h-4 mr-2" /> Start Session
-                </Button>
-                <Button variant="outline" onClick={() => setShowLockForm(true)}>
-                  <Lock className="w-4 h-4 mr-2" /> Assign Lock
-                </Button>
+                {rolePerms.canStartSession && (
+                  <Button onClick={() => setShowSessionForm(true)}>
+                    <Play className="w-4 h-4 mr-2" /> Start Session
+                  </Button>
+                )}
+                {rolePerms.canLock && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowLockForm(true)}
+                  >
+                    <Lock className="w-4 h-4 mr-2" /> Assign Lock
+                  </Button>
+                )}
+                {rolePerms.canEdit && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowEditDialog(true)}
+                  >
+                    <Edit className="w-4 h-4 mr-2" /> Edit
+                  </Button>
+                )}
               </>
             )}
-            {station.status === "OCCUPIED" && (
+
+            {station.status === "OCCUPIED" && rolePerms.canStartSession && (
               <>
                 <Button
                   variant="destructive"
@@ -304,18 +337,21 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
                 </Button>
               </>
             )}
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => onDelete(station.id)}
-              className="flex items-center justify-center"
-            >
-              <Trash2 className="w-4 h-4 mr-2" /> Delete
-            </Button>
+
+            {rolePerms.canDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onDelete(station.id)}
+                className="flex items-center justify-center"
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> Delete
+              </Button>
+            )}
           </div>
 
           {/* Session Form */}
-          {showSessionForm && (
+          {showSessionForm && rolePerms.canStartSession && (
             <div className="space-y-2 p-3 border rounded bg-card dark:bg-card-dark mb-3">
               <h4 className="font-semibold">Start New Session</h4>
               <Input
@@ -369,8 +405,21 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
             </div>
           )}
 
+          {/* Edit Dialog */}
+          {showEditDialog && station && rolePerms.canEdit && (
+            <StationModal
+              station={station}
+              onClose={() => setShowEditDialog(false)}
+              onSave={(updated) => {
+                console.log("Edited Station:", updated);
+                onAction(updated.id, "edit", updated);
+                setShowEditDialog(false);
+              }}
+            />
+          )}
+
           {/* Lock Form */}
-          {showLockForm && (
+          {showLockForm && rolePerms.canLock && (
             <div className="space-y-2 p-3 border rounded bg-card dark:bg-card-dark mb-3">
               <h4 className="font-semibold">Assign Lock</h4>
               <Input
@@ -413,47 +462,55 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
           )}
 
           {/* Power & Maintenance */}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onAction(station.id, "power-off")}
-              disabled={station.status === "OCCUPIED"}
-            >
-              <Power className="w-4 h-4 mr-2" /> Power Off
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onAction(station.id, "restart")}
-              disabled={station.status === "OCCUPIED"}
-            >
-              <RotateCcw className="w-4 h-4 mr-2" /> Restart
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                onAction(station.id, "toggle-maintenance", {
-                  status:
-                    station.status === "MAINTENANCE"
-                      ? "AVAILABLE"
-                      : "MAINTENANCE",
-                })
-              }
-              disabled={station.status === "OCCUPIED"}
-            >
-              {station.status === "MAINTENANCE" ? (
+          {(rolePerms.canPower || rolePerms.canMaintenance) && (
+            <div className="flex gap-2">
+              {rolePerms.canPower && (
                 <>
-                  <Wifi className="w-4 h-4 mr-2" /> Enable
-                </>
-              ) : (
-                <>
-                  <Wrench className="w-4 h-4 mr-2" /> Maintenance
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAction(station.id, "power-off")}
+                    disabled={station.status === "OCCUPIED"}
+                  >
+                    <Power className="w-4 h-4 mr-2" /> Power Off
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAction(station.id, "restart")}
+                    disabled={station.status === "OCCUPIED"}
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" /> Restart
+                  </Button>
                 </>
               )}
-            </Button>
-          </div>
+              {rolePerms.canMaintenance && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onAction(station.id, "toggle-maintenance", {
+                      status:
+                        station.status === "MAINTENANCE"
+                          ? "AVAILABLE"
+                          : "MAINTENANCE",
+                    })
+                  }
+                  disabled={station.status === "OCCUPIED"}
+                >
+                  {station.status === "MAINTENANCE" ? (
+                    <>
+                      <Wifi className="w-4 h-4 mr-2" /> Enable
+                    </>
+                  ) : (
+                    <>
+                      <Wrench className="w-4 h-4 mr-2" /> Maintenance
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
         </DialogContent>
       </DialogOverlay>
     </Dialog>

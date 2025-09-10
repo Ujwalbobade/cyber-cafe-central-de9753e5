@@ -3,31 +3,16 @@ import { Monitor, Gamepad2, Lock, Unlock, Hand } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import AdminWebSocketService from "../../../services/Websockets"
 import SessionPopup from "../../Session/SessionPopup"
+import { Station } from "@/components/Types/Stations"
 
-interface Station {
-  id: string
-  name: string
-  type: "PC" | "PS5" | "PS4"
-  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE" | "OFFLINE"
-  hourlyRate: number
-  ipAddress?: string
-  specifications: string
-  isLocked: boolean
-  lockedFor?: string
-  handRaised?: boolean
-  currentSession?: {
-    id: string
-    customerName: string
-    startTime: string
-    timeRemaining: number
-  }
-}
+
 
 interface StationGridViewProps {
   stations: Station[]
   onStationClick: (station: Station) => void
   onStationAction: (stationId: string, action: string, data?: any) => void
   updateStationStatus: (stationId: string, status: Station["status"]) => void
+   currentUserRole: "admin" | "moderator"
 }
 
 const StationGridView: React.FC<StationGridViewProps> = ({
@@ -35,6 +20,7 @@ const StationGridView: React.FC<StationGridViewProps> = ({
   onStationClick,
   onStationAction,
   updateStationStatus,
+   currentUserRole,
 }) => {
   const stationWS = AdminWebSocketService.getInstance()
     const [selectedStation, setSelectedStation] = React.useState<Station | null>(null)
@@ -184,6 +170,7 @@ const StationGridView: React.FC<StationGridViewProps> = ({
           onClose={() => setSelectedStation(null)}
           onAction={onStationAction}
           onDelete={() => onStationAction(selectedStation.id, "delete")}
+          userRole={currentUserRole}
         />
       )}
     </div>

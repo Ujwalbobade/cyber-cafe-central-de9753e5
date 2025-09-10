@@ -1,38 +1,48 @@
-import React, { useState } from 'react';
-import { X, Plus, Monitor, Gamepad2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Plus, Save, Monitor, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Station } from '@/components/Types/Stations';
 
-interface Station {
-  name: string;
-  type: 'PC' | 'PS5' | 'PS4';
-  hourlyRate: number;
-  macAddress: string;
-  specifications: string;
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
-  ipAddress?: string;
-}
 
-interface AddStationModalProps {
+
+interface StationModalProps {
+  station?: Station; // if provided → edit mode
   onClose: () => void;
-  onAdd: (station: Omit<Station, 'id' | 'isLocked' | 'currentSession'>) => void;
+  onSave: (station: Station) => void; 
+//  onSave: (station: Omit<Station, 'id' | 'isLocked' | 'currentSession'>) => void;
 }
 
-const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => {
+const StationModal: React.FC<StationModalProps> = ({ station, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
     type: 'PC' as 'PC' | 'PS5' | 'PS4',
     hourlyRate: 120,
     ipAddress: '',
     macAddress: '',
-    specifications: ''
+    specifications: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+
+  // Pre-fill if editing
+  useEffect(() => {
+  if (station) {
+    setFormData({
+      name: station.name,
+      type: station.type,
+      hourlyRate: station.hourlyRate,
+      ipAddress: station.ipAddress ?? '',
+      macAddress: station.macAddress,
+      specifications: station.specifications,
+    });
+  }
+}, [station]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -64,15 +74,18 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (validateForm()) {
-      onAdd({
-        ...formData,
-        status: 'AVAILABLE' as const
-      });
-    }
-  };
+  if (validateForm()) {
+    const updated: Station = {
+      ...station!, // keep existing fields like id, isLocked, etc.
+      ...formData,
+      status: station?.status ?? "AVAILABLE",
+    };
+
+    onSave(updated);
+  }
+};
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -86,11 +99,16 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
     }
   };
 
+  const isEdit = !!station;
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse-gaming" />
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-secondary/10 rounded-full blur-3xl animate-pulse-gaming" style={{ animationDelay: '1s' }} />
+        <div
+          className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-secondary/10 rounded-full blur-3xl animate-pulse-gaming"
+          style={{ animationDelay: '1s' }}
+        />
       </div>
 
       <Card className="w-full max-w-md card-gaming border-primary/30 relative z-10 animate-slide-in-gaming">
@@ -99,14 +117,20 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow-primary">
-                <Plus className="w-6 h-6 text-primary-foreground" />
+                {isEdit ? (
+                  <Save className="w-6 h-6 text-primary-foreground" />
+                ) : (
+                  <Plus className="w-6 h-6 text-primary-foreground" />
+                )}
               </div>
               <div>
                 <h2 className="text-xl font-gaming font-bold text-foreground">
-                  DEPLOY NEW RIG
+                  {isEdit ? 'EDIT RIG' : 'DEPLOY NEW RIG'}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Add a new gaming station to the network
+                  {isEdit
+                    ? 'Modify this gaming station’s details'
+                    : 'Add a new gaming station to the network'}
                 </p>
               </div>
             </div>
@@ -120,6 +144,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
             </Button>
           </div>
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Station Name */}
             <div className="space-y-2">
@@ -189,7 +214,9 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
                 step="10"
                 min="0"
                 value={formData.hourlyRate}
-                onChange={(e) => setFormData({ ...formData, hourlyRate: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setFormData({ ...formData, hourlyRate: parseFloat(e.target.value) || 0 })
+                }
                 className="bg-input/50 border-primary/30 focus:border-primary h-11 font-gaming"
               />
               {errors.hourlyRate && (
@@ -205,7 +232,9 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
               <Input
                 id="mac"
                 value={formData.macAddress}
-                onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, macAddress: e.target.value })
+                }
                 className="bg-input/50 border-primary/30 focus:border-primary h-11 font-mono text-sm"
                 placeholder="AA:BB:CC:DD:EE:FF"
               />
@@ -223,7 +252,9 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
                 <Input
                   id="ip"
                   value={formData.ipAddress}
-                  onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, ipAddress: e.target.value })
+                  }
                   className="bg-input/50 border-primary/30 focus:border-primary h-11 font-mono text-sm"
                   placeholder="192.168.1.xxx"
                 />
@@ -232,6 +263,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
                 )}
               </div>
             )}
+
             {/* Specifications */}
             <div className="space-y-2">
               <Label htmlFor="specifications" className="font-gaming text-sm tracking-wide">
@@ -240,19 +272,30 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
 
               {/* Predefined options */}
               <Select
-                onValueChange={(value) => setFormData({ ...formData, specifications: value })}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, specifications: value })
+                }
               >
                 <SelectTrigger className="bg-input/50 border-primary/30 focus:border-primary h-11 font-gaming mb-2">
                   <SelectValue placeholder="Choose a spec template (optional)" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-primary/30">
-                  <SelectItem value="Intel i5 | 16GB RAM | GTX 1660 | 512GB SSD" className="font-gaming">
+                  <SelectItem
+                    value="Intel i5 | 16GB RAM | GTX 1660 | 512GB SSD"
+                    className="font-gaming"
+                  >
                     Entry-Level Gaming PC
                   </SelectItem>
-                  <SelectItem value="Intel i7 | 32GB RAM | RTX 3070 | 1TB NVMe" className="font-gaming">
+                  <SelectItem
+                    value="Intel i7 | 32GB RAM | RTX 3070 | 1TB NVMe"
+                    className="font-gaming"
+                  >
                     High-End Gaming PC
                   </SelectItem>
-                  <SelectItem value="Ryzen 5 | 16GB RAM | RTX 3060 | 512GB SSD" className="font-gaming">
+                  <SelectItem
+                    value="Ryzen 5 | 16GB RAM | RTX 3060 | 512GB SSD"
+                    className="font-gaming"
+                  >
                     Balanced Gaming PC
                   </SelectItem>
                   <SelectItem value="PlayStation 5 (Digital Edition)" className="font-gaming">
@@ -264,27 +307,37 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
                 </SelectContent>
               </Select>
 
-              {/* Manual input (still editable) */}
+              {/* Manual input */}
               <Textarea
                 id="specifications"
                 value={formData.specifications}
-                onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, specifications: e.target.value })
+                }
                 className="bg-input/50 border-primary/30 focus:border-primary font-mono text-sm h-24"
                 placeholder="Enter custom specifications if not using a template..."
               />
               {errors.specifications && (
-                <p className="text-error text-xs font-gaming">{errors.specifications}</p>
+                <p className="text-error text-xs font-gaming">
+                  {errors.specifications}
+                </p>
               )}
             </div>
 
             {/* Actions */}
             <div className="flex space-x-3 pt-4">
-              <Button
-                type="submit"
-                className="flex-1 btn-gaming font-gaming h-11"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                DEPLOY RIG
+              <Button type="submit" className="flex-1 btn-gaming font-gaming h-11">
+                {isEdit ? (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    SAVE CHANGES
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    DEPLOY RIG
+                  </>
+                )}
               </Button>
               <Button
                 type="button"
@@ -302,4 +355,4 @@ const AddStationModal: React.FC<AddStationModalProps> = ({ onClose, onAdd }) => 
   );
 };
 
-export default AddStationModal;
+export default StationModal;

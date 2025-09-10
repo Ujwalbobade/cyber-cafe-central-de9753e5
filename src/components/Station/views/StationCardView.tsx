@@ -23,7 +23,7 @@ import SessionPopup from "../../Session/SessionPopup";
 //
 // -------------------- Interfaces --------------------
 export type StationType = "PC" | "PS5" | "PS4";
-export type StationStatus = "AVAILABLE" | "OCCUPIED" | "MAINTENANCE";
+export type StationStatus = "AVAILABLE" | "OCCUPIED" | "MAINTENANCE"| "OFFLINE";
 
 export interface Session {
   id: string;
@@ -52,6 +52,7 @@ export interface StationCardProps {
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: () => void;
   updateStationStatus?: (stationId: string, status: StationStatus) => void;
+  currentUserRole: "admin" | "moderator" | "viewer"; // New prop to determine user role
 }
 
 //
@@ -61,6 +62,7 @@ const StationCard: React.FC<StationCardProps> = ({
   onAction,
   onDelete,
   updateStationStatus,
+  currentUserRole,
 }) => {
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [showLockForm, setShowLockForm] = useState(false);
@@ -251,88 +253,84 @@ const StationCard: React.FC<StationCardProps> = ({
           </div>
         )}
 
-        {/* Actions */}
-        {!showSessionForm && !showLockForm && (
-          <div className="space-y-2">
-            {station.status === "AVAILABLE" && (
-              <Button
-                onClick={() => setShowSessionPopup(true)}
-                className="w-full h-8 text-sm"
-                disabled={station.isLocked}
-              >
-                <Play className="w-3 h-3 mr-1" /> INITIATE
-              </Button>
-            )}
-            {station.status === "OCCUPIED" && (
-              <div className="flex gap-1">
-                <Button
-                  onClick={() =>
-                    onAction(station.id, "end-session", {
-                      sessionId: station.currentSession?.id,
-                    })
-                  }
-                  variant="destructive"
-                  className="flex-1 h-8 text-xs"
-                >
-                  <Square className="w-3 h-3 mr-1" /> END
-                </Button>
-                <Button
-                  onClick={() =>
-                    onAction(station.id, "add-time", {
-                      sessionId: station.currentSession?.id,
-                      minutes: 30,
-                    })
-                  }
-                  variant="secondary"
-                  className="flex-1 h-8 text-xs"
-                >
-                  +30M
-                </Button>
-              </div>
-            )}
-            {station.status === "MAINTENANCE" && (
-              <Button disabled className="w-full h-8 text-xs">
-                <Settings className="w-3 h-3 mr-1" /> MAINTENANCE
-              </Button>
-            )}
+      {/* Actions */}
+{!showSessionForm && !showLockForm && (
+  <div className="space-y-2">
+    {station.status === "AVAILABLE" && (
+      <Button
+        onClick={() => setShowSessionPopup(true)}
+        className="w-full h-8 text-sm"
+        disabled={station.isLocked}
+      >
+        <Play className="w-3 h-3 mr-1" /> INITIATE
+      </Button>
+    )}
+    {station.status === "OCCUPIED" && (
+      <div className="flex gap-1">
+        <Button
+          onClick={() =>
+            onAction(station.id, "end-session", {
+              sessionId: station.currentSession?.id,
+            })
+          }
+          variant="destructive"
+          className="flex-1 h-8 text-xs"
+        >
+          <Square className="w-3 h-3 mr-1" /> END
+        </Button>
+        <Button
+          onClick={() =>
+            onAction(station.id, "add-time", {
+              sessionId: station.currentSession?.id,
+              minutes: 30,
+            })
+          }
+          variant="secondary"
+          className="flex-1 h-8 text-xs"
+        >
+          +30M
+        </Button>
+      </div>
+    )}
+    {station.status === "MAINTENANCE" && (
+      <Button disabled className="w-full h-8 text-xs">
+        <Settings className="w-3 h-3 mr-1" /> MAINTENANCE
+      </Button>
+    )}
 
-            <div className="flex gap-1">
-              <Button
-                onClick={() =>
-                  station.isLocked
-                    ? onAction(station.id, "unlock")
-                    : setShowLockForm(true)
-                }
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-              >
-                {station.isLocked ? (
-                  <Unlock className="w-3 h-3" />
-                ) : (
-                  <Lock className="w-3 h-3" />
-                )}
-              </Button>
-              <Button
-                onClick={() => onAction(station.id, "raise-hand")}
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-              >
-                <Hand className="w-3 h-3" />
-              </Button>
-            </div>
+    <div className="flex gap-1">
+      <Button
+        onClick={() =>
+          station.isLocked ? onAction(station.id, "unlock") : setShowLockForm(true)
+        }
+        variant="outline"
+        size="sm"
+        className="h-7 text-xs"
+      >
+        {station.isLocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+      </Button>
+      <Button
+        onClick={() => onAction(station.id, "raise-hand")}
+        variant="outline"
+        size="sm"
+        className="h-7 text-xs"
+      >
+        <Hand className="w-3 h-3" />
+      </Button>
+    </div>
 
-            <Button
-              onClick={onDelete}
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs text-error"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
+    {currentUserRole === "admin" && (
+      <Button
+        onClick={onDelete}
+        variant="outline"
+        size="sm"
+        className="h-7 text-xs text-error"
+      >
+        <Trash2 className="w-3 h-3" />
+      </Button>
+    )}
+  </div>
+)}
 
         {/* Session Form */}
         {showSessionForm && (
@@ -435,6 +433,7 @@ const StationCard: React.FC<StationCardProps> = ({
         onClose={() => setShowSessionPopup(false)}
         onAction={onAction}
         onDelete={onDelete}
+        userRole={currentUserRole}
       />
     </Card>
   );
