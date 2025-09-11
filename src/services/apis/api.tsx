@@ -63,7 +63,14 @@ export const login = (username: string, password: string) =>
 
 export const getCurrentUser = () => apiFetch("/auth/me");
 
-export const register = (user: { username: string; email: string; password: string; role: string; }) =>
+export const register = (user: {
+  username: string;
+  email: string;
+  password: string;
+  role: string;
+  fullName: string;
+  phoneNumber: string;   // ✅ consistent with your form state
+}) =>
   apiFetch("/auth/register", {
     method: "POST",
     body: JSON.stringify(user),

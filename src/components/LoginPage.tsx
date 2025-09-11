@@ -20,7 +20,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     password: '',
     confirmPassword: '',
     email: '',
-    role: 'user'
+    role: 'user',
+    fullName: '',      // new
+    phoneNumber: '',
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -49,14 +51,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         if (token) {
           // Store the authentication token
           localStorage.setItem('adminToken', token);
-          
+
           // Store user info along with token
           localStorage.setItem('currentUser', JSON.stringify({
             username: data.user?.username || credentials.username,
             email: data.user?.email || '',
             role: data.user?.role || 'admin'
           }));
-          
+
           onLogin(token);
         }
         // const token = data?.token || "mock-jwt-token";
@@ -82,6 +84,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           email: credentials.email,
           password: credentials.password,
           role: credentials.role,
+          fullName: credentials.fullName,   // ✅ new
+          phoneNumber: credentials.phoneNumber, // ✅ new
         });
 
         toast({
@@ -96,6 +100,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           password: "",
           confirmPassword: "",
           role: "user",
+          fullName: '',
+          phoneNumber: '',
         });
       }
     } catch (error: any) {
@@ -163,6 +169,39 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   placeholder="Enter username"
                 />
               </div>
+              {mode === 'register' && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="font-gaming text-sm tracking-wide">
+                    FULL NAME
+                  </Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    required
+                    value={credentials.fullName}
+                    onChange={(e) => setCredentials({ ...credentials, fullName: e.target.value })}
+                    className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming"
+                    placeholder="John Doe"
+                  />
+                </div>
+              )}
+
+              {mode === 'register' && (
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber" className="font-gaming text-sm tracking-wide">
+                    PHONE NUMBER
+                  </Label>
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    required
+                    value={credentials.phoneNumber}
+                    onChange={(e) => setCredentials({ ...credentials, phoneNumber: e.target.value })}
+                    className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming"
+                    placeholder="9876543210"
+                  />
+                </div>
+              )}
 
               {mode === 'register' && (
                 <div className="space-y-2">
@@ -242,7 +281,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </div>
               )}
             </div>
-
             <Button
               type="submit"
               disabled={loading}
