@@ -13,6 +13,7 @@ import {
   Wifi,
   Trash2,
   Edit,
+  Hand,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,20 +45,6 @@ type Pack = {
   category: "quick" | "custom";
 };
 
-// ---------- Packs ----------
-const packs: Pack[] = [
-  // Quick Packs
-  { label: "15m", minutes: 15, price: 37.5, category: "quick" },
-  { label: "30m", minutes: 30, price: 75, category: "quick" },
-  { label: "1h", minutes: 60, price: 150, category: "quick" },
-  { label: "2h", minutes: 120, price: 300, category: "quick" },
-  { label: "4h", minutes: 240, price: 600, category: "quick" },
-
-  // Custom Packs
-  { label: "Night Pass", minutes: 480, price: 900, category: "custom" }, // 8h
-  { label: "Day Pass", minutes: 720, price: 1300, category: "custom" }, // 12h
-  { label: "Weekend Pass", minutes: 1440, price: 2500, category: "custom" }, // 24h
-];
 // ---------- Permissions ----------
 const permissions = {
   admin: {
@@ -87,14 +74,6 @@ const permissions = {
 };
 
 // ---------- Helpers ----------
-const quickTimePacks = [
-  { label: "15m", minutes: 15, price: 37.5 },
-  { label: "30m", minutes: 30, price: 75 },
-  { label: "1h", minutes: 60, price: 150 },
-  { label: "2h", minutes: 120, price: 300 },
-  { label: "4h", minutes: 240, price: 600 },
-];
-
 const getTypeIcon = (type: Station["type"]) => {
   switch (type) {
     case "PC":
@@ -117,25 +96,29 @@ const PackGrid: React.FC<{
   title: string;
   packs: Pack[];
   onSelect: (pack: Pack) => void;
-}> = ({ title, packs, onSelect }) => (
-  <div className="mb-4">
-    <h4 className="text-sm font-semibold mb-2">{title}</h4>
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {packs.map((pack) => (
-        <Button
-          key={pack.label}
-          onClick={() => onSelect(pack)}
-          variant="outline"
-          size="sm"
-          className="flex flex-col h-14"
-        >
-          <div className="font-bold">{pack.label}</div>
-          <div className="text-xs">₹{pack.price}</div>
-        </Button>
-      ))}
+}> = ({ title, packs, onSelect }) => {
+  if (packs.length === 0) return null;
+  return (
+    <div className="mb-4">
+      <h4 className="text-sm font-semibold mb-2">{title}</h4>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {packs.map((pack) => (
+          <Button
+            key={pack.label}
+            onClick={() => onSelect(pack)}
+            variant="outline"
+            size="sm"
+            className="flex flex-col h-14"
+          >
+            <div className="font-bold">{pack.label}</div>
+            <div className="text-xs">₹{pack.price}</div>
+          </Button>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
 // ---------- Component ----------
 const SessionPopup: React.FC<SessionPopupProps> = ({
   station,
@@ -146,6 +129,16 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
   userRole,
 }) => {
   const [allowedTimes, setAllowedTimes] = useState<number[]>([15, 30, 60, 120]);
+  const [packs, setPacks] = useState<Pack[]>([
+    { label: "15m", minutes: 15, price: 37.5, category: "quick" },
+    { label: "30m", minutes: 30, price: 75, category: "quick" },
+    { label: "1h", minutes: 60, price: 150, category: "quick" },
+    { label: "2h", minutes: 120, price: 300, category: "quick" },
+    { label: "4h", minutes: 240, price: 600, category: "quick" },
+    { label: "Day Pass", minutes: 720, price: 1300, category: "custom" },
+    { label: "Weekend Pass", minutes: 1440, price: 2500, category: "custom" },
+  ]);
+
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [showLockForm, setShowLockForm] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -173,16 +166,9 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
   }, []);
 
   if (!station) return null;
-
-  const statusMap = {
-    AVAILABLE: { text: "Available", badge: "bg-green-100 text-green-800" },
-    OCCUPIED: { text: "In Session", badge: "bg-red-100 text-red-800" },
-    MAINTENANCE: { text: "Maintenance", badge: "bg-yellow-100 text-yellow-800" },
-    OFFLINE: { text: "Offline", badge: "bg-gray-100 text-gray-800" },
-  };
-
   const rolePerms = permissions[userRole];
 
+  // ---------- Handlers ----------
   const handleStartSession = () => {
     if (sessionData.customerName.trim()) {
       onAction(station.id, "start-session", sessionData);
@@ -202,7 +188,7 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
   };
 
   const handleQuickSession = useCallback(
-    (pack: typeof quickTimePacks[0]) => {
+    (pack: Pack) => {
       if (
         station.status === "AVAILABLE" &&
         !station.isLocked &&
@@ -229,10 +215,25 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
     }
   };
 
+  const handleClearHandRaise = () => {
+    if (!station) return;
+    onAction(station.id, "clearHandRaise");
+    onClose();
+  };
+
+  // ---------- UI ----------
+  const statusMap: Record<string, { text: string; badge: string }> = {
+    AVAILABLE: { text: "Available", badge: "bg-green-100 text-green-800" },
+    OCCUPIED: { text: "In Session", badge: "bg-red-100 text-red-800" },
+    MAINTENANCE: { text: "Maintenance", badge: "bg-yellow-100 text-yellow-800" },
+    OFFLINE: { text: "Offline", badge: "bg-gray-100 text-gray-800" },
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogOverlay className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <DialogContent className="w-full max-w-md bg-background dark:bg-background-dark rounded-xl shadow-2xl border border-border p-6 animate-fade-in">
+
           {/* Header */}
           <DialogHeader className="mb-4">
             <div className="flex items-center justify-between">
@@ -261,6 +262,32 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
             </div>
           )}
 
+          {/* Hand Raise Alert (moved to top for visibility) */}
+          {station.handRaised && (
+            <div role="status" className="p-3 bg-yellow-50 border border-yellow-200 rounded mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Hand className="w-5 h-5 text-yellow-700" />
+                <div>
+                  <div className="text-sm font-medium text-yellow-800">Hand Raised</div>
+                  <div className="text-xs text-yellow-700/90">Player requested assistance</div>
+                </div>
+              </div>
+
+              {(userRole === "admin" || userRole === "moderator") ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleClearHandRaise}
+                    aria-label="Resolve hand raise"
+                  >
+                    Resolve
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {/* Current Session */}
           {station.currentSession && (
             <div className="p-3 bg-card border border-red-600 rounded mb-3">
@@ -274,119 +301,45 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Started:{" "}
-                {new Date(
-                  station.currentSession.startTime
-                ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                Started: {new Date(station.currentSession.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
           )}
+
           {/* Packs Section */}
-          {station.status === "AVAILABLE" &&
-            !station.isLocked &&
-            !showSessionForm &&
-            rolePerms.canStartSession && (
-              <>
-                <PackGrid
-                  title="Quick Packs"
-                  packs={packs.filter((p) => p.category === "quick")}
-                  onSelect={handleQuickSession}
-                />
-                <PackGrid
-                  title="Custom Packs"
-                  packs={packs.filter((p) => p.category === "custom")}
-                  onSelect={handleQuickSession}
-                />
-              </>
-            )}
+          {station.status === "AVAILABLE" && !station.isLocked && !showSessionForm && rolePerms.canStartSession && (
+            <>
+              <PackGrid
+                title="Quick Packs"
+                packs={packs.filter((p) => p.category === "quick")}
+                onSelect={handleQuickSession}
+              />
+              <PackGrid
+                title="Custom Packs"
+                packs={packs.filter((p) => p.category === "custom")}
+                onSelect={handleQuickSession}
+              />
+            </>
+          )}
 
           {/* Add Time */}
-          {station.status === "OCCUPIED" &&
-            station.currentSession &&
-            rolePerms.canStartSession && (
-              <div className="mb-3">
-                <h4 className="text-sm font-semibold mb-2">Add Time</h4>
-                <div className="grid grid-cols-4 gap-1">
-                  {[15, 30, 60, 120].map((m) => (
-                    <Button
-                      key={m}
-                      onClick={() => handleAddQuickTime(m)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      +{m < 60 ? `${m}m` : `${m / 60}h`} (₹
-                      {(station.hourlyRate * m) / 60})
-                    </Button>
-                  ))}
-                </div>
+          {station.status === "OCCUPIED" && station.currentSession && rolePerms.canStartSession && (
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold mb-2">Add Time</h4>
+              <div className="grid grid-cols-4 gap-1">
+                {allowedTimes.map((m) => (
+                  <Button
+                    key={m}
+                    onClick={() => handleAddQuickTime(m)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    +{m < 60 ? `${m}m` : `${m / 60}h`} (₹{(station.hourlyRate * m) / 60})
+                  </Button>
+                ))}
               </div>
-            )}
-
-          {/* Actions */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {station.status === "AVAILABLE" && (
-              <>
-                {rolePerms.canStartSession && (
-                  <Button onClick={() => setShowSessionForm(true)}>
-                    <Play className="w-4 h-4 mr-2" /> Start Session
-                  </Button>
-                )}
-                {rolePerms.canLock && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowLockForm(true)}
-                  >
-                    <Lock className="w-4 h-4 mr-2" /> Assign Lock
-                  </Button>
-                )}
-                {rolePerms.canEdit && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowEditDialog(true)}
-                  >
-                    <Edit className="w-4 h-4 mr-2" /> Edit
-                  </Button>
-                )}
-              </>
-            )}
-
-            {station.status === "OCCUPIED" && rolePerms.canStartSession && (
-              <>
-                <Button
-                  variant="destructive"
-                  onClick={() =>
-                    onAction(station.id, "end-session", {
-                      sessionId: station.currentSession?.id,
-                    })
-                  }
-                >
-                  <Square className="w-4 h-4 mr-2" /> End Session
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    onAction(station.id, "add-time", {
-                      sessionId: station.currentSession?.id,
-                      minutes: 30,
-                    })
-                  }
-                >
-                  +30 Min
-                </Button>
-              </>
-            )}
-
-            {rolePerms.canDelete && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => onDelete(station.id)}
-                className="flex items-center justify-center"
-              >
-                <Trash2 className="w-4 h-4 mr-2" /> Delete
-              </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Session Form */}
           {showSessionForm && rolePerms.canStartSession && (
@@ -395,21 +348,11 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
               <Input
                 placeholder="Player name"
                 value={sessionData.customerName}
-                onChange={(e) =>
-                  setSessionData({
-                    ...sessionData,
-                    customerName: e.target.value,
-                  })
-                }
+                onChange={(e) => setSessionData({ ...sessionData, customerName: e.target.value })}
               />
               <select
                 value={sessionData.timeMinutes}
-                onChange={(e) =>
-                  setSessionData({
-                    ...sessionData,
-                    timeMinutes: parseInt(e.target.value),
-                  })
-                }
+                onChange={(e) => setSessionData({ ...sessionData, timeMinutes: parseInt(e.target.value) })}
                 className="w-full h-9 border rounded-md text-sm px-2 bg-background dark:bg-background-dark"
               >
                 {allowedTimes.map((m) => (
@@ -422,21 +365,44 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
                 type="number"
                 placeholder="Prepaid Amount"
                 value={sessionData.prepaidAmount}
-                onChange={(e) =>
-                  setSessionData({
-                    ...sessionData,
-                    prepaidAmount: parseFloat(e.target.value),
-                  })
-                }
+                onChange={(e) => setSessionData({ ...sessionData, prepaidAmount: parseFloat(e.target.value) })}
               />
               <div className="flex gap-2">
                 <Button onClick={handleStartSession}>
                   <Zap className="w-4 h-4 mr-2" /> Launch
                 </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowSessionForm(false)}
-                >
+                <Button variant="secondary" onClick={() => setShowSessionForm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Lock Form */}
+          {showLockForm && rolePerms.canLock && (
+            <div className="space-y-2 p-3 border rounded bg-card dark:bg-card-dark mb-3">
+              <h4 className="font-semibold">Assign Lock</h4>
+              <Input
+                placeholder="Assign to user"
+                value={lockData.assignedUser}
+                onChange={(e) => setLockData({ ...lockData, assignedUser: e.target.value })}
+              />
+              <Input
+                type="number"
+                placeholder="Prepaid Amount"
+                value={lockData.prepaidAmount}
+                onChange={(e) => setLockData({ ...lockData, prepaidAmount: parseFloat(e.target.value) })}
+              />
+              <Input
+                placeholder="Notes"
+                value={lockData.notes}
+                onChange={(e) => setLockData({ ...lockData, notes: e.target.value })}
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleLockStation}>
+                  <Lock className="w-4 h-4 mr-2" /> Lock
+                </Button>
+                <Button variant="secondary" onClick={() => setShowLockForm(false)}>
                   Cancel
                 </Button>
               </div>
@@ -449,59 +415,66 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
               station={station}
               onClose={() => setShowEditDialog(false)}
               onSave={(updated) => {
-                console.log("Edited Station:", updated);
                 onAction(updated.id, "edit", updated);
                 setShowEditDialog(false);
               }}
             />
           )}
 
-          {/* Lock Form */}
-          {showLockForm && rolePerms.canLock && (
-            <div className="space-y-2 p-3 border rounded bg-card dark:bg-card-dark mb-3">
-              <h4 className="font-semibold">Assign Lock</h4>
-              <Input
-                placeholder="Assign to user"
-                value={lockData.assignedUser}
-                onChange={(e) =>
-                  setLockData({ ...lockData, assignedUser: e.target.value })
-                }
-              />
-              <Input
-                type="number"
-                placeholder="Prepaid Amount"
-                value={lockData.prepaidAmount}
-                onChange={(e) =>
-                  setLockData({
-                    ...lockData,
-                    prepaidAmount: parseFloat(e.target.value),
-                  })
-                }
-              />
-              <Input
-                placeholder="Notes"
-                value={lockData.notes}
-                onChange={(e) =>
-                  setLockData({ ...lockData, notes: e.target.value })
-                }
-              />
-              <div className="flex gap-2">
-                <Button onClick={handleLockStation}>
-                  <Lock className="w-4 h-4 mr-2" /> Lock
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowLockForm(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* ---------- Actions Section ---------- */}
+          <div className="mt-4 border-t pt-3">
+            <h4 className="text-sm font-semibold mb-2">Actions</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
 
-          {/* Power & Maintenance */}
-          {(rolePerms.canPower || rolePerms.canMaintenance) && (
-            <div className="flex gap-2">
+              {/* Start Session / Lock / Edit (when available) */}
+              {station.status === "AVAILABLE" && (
+                <>
+                  {rolePerms.canStartSession && (
+                    <Button onClick={() => setShowSessionForm(true)}>
+                      <Play className="w-4 h-4 mr-2" /> Start Session
+                    </Button>
+                  )}
+                  {rolePerms.canLock && (
+                    <Button variant="outline" onClick={() => setShowLockForm(true)}>
+                      <Lock className="w-4 h-4 mr-2" /> Assign Lock
+                    </Button>
+                  )}
+                  {rolePerms.canEdit && (
+                    <Button variant="outline" onClick={() => setShowEditDialog(true)}>
+                      <Edit className="w-4 h-4 mr-2" /> Edit
+                    </Button>
+                  )}
+                </>
+              )}
+
+              {/* End Session / Add Time (when occupied) */}
+              {station.status === "OCCUPIED" && rolePerms.canStartSession && (
+                <>
+                  <Button
+                    variant="destructive"
+                    onClick={() =>
+                      onAction(station.id, "end-session", {
+                        sessionId: station.currentSession?.id,
+                      })
+                    }
+                  >
+                    <Square className="w-4 h-4 mr-2" /> End Session
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      onAction(station.id, "add-time", {
+                        sessionId: station.currentSession?.id,
+                        minutes: 30,
+                      })
+                    }
+                  >
+                    +30 Min
+                  </Button>
+                </>
+              )}
+
+              {/* Power & Maintenance */}
               {rolePerms.canPower && (
                 <>
                   <Button
@@ -528,10 +501,7 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
                   size="sm"
                   onClick={() =>
                     onAction(station.id, "toggle-maintenance", {
-                      status:
-                        station.status === "MAINTENANCE"
-                          ? "AVAILABLE"
-                          : "MAINTENANCE",
+                      status: station.status === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE",
                     })
                   }
                   disabled={station.status === "OCCUPIED"}
@@ -547,8 +517,15 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
                   )}
                 </Button>
               )}
+
+              {/* Delete (admin only) */}
+              {rolePerms.canDelete && (
+                <Button variant="destructive" size="sm" onClick={() => onDelete(station.id)}>
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete
+                </Button>
+              )}
             </div>
-          )}
+          </div>
         </DialogContent>
       </DialogOverlay>
     </Dialog>

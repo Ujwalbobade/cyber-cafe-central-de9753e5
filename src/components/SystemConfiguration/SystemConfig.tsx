@@ -37,16 +37,16 @@ export interface SystemConfiguration {
     enabled: boolean;
     startTime: string;
     endTime: string;
-    discountPercent: number;
-    days: string[];
+    rate: number;             // <-- Instead of discountPercent
+    days: string[];           // <-- Days of week
   }[];
-  customPacks: {
+   customPacks: {
     id: string;
     name: string;
     duration: number;
     price: number;
     description: string;
-    validStationTypes: ('PC' | 'PS5' | 'PS4')[];
+    validStationTypes: string[]; // 🔥 now dynamic
   }[];
 }
 
@@ -69,39 +69,43 @@ const SystemSettings: React.FC = () => {
 
 
   const [newTimeOption, setNewTimeOption] = useState('');
-  const [newCustomPack, setNewCustomPack] = useState({
-    name: '',
-    duration: 60,
-    price: 100,
-    description: '',
-    validStationTypes: ['PC', 'PS5', 'PS4'] as ('PC' | 'PS5' | 'PS4')[],
-  });
+ const [newCustomPack, setNewCustomPack] = useState({
+  name: '',
+  duration: 60,
+  price: 100,
+  description: '',
+  validStationTypes: [] as string[], // 🔥 start empty
+});
   const [newHappyHour, setNewHappyHour] = useState({
     startTime: '14:00',
     endTime: '18:00',
-    discountPercent: 20,
-    days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    rate: 80,
+    days: [] as string[],
   });
+
+  const weekDays = [
+    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+  ];
   const [newCustomStation, setNewCustomStation] = useState({ type: '', rate: 100 });
 
 
 
   const [currentThemeColor, setCurrentThemeColor] = useState<{ r: number; g: number; b: number }>({
-  r: 0,
-  g: 122,
-  b: 255,
-});
+    r: 0,
+    g: 122,
+    b: 255,
+  });
 
-const handleSave = () => {
-   localStorage.setItem('systemConfig', JSON.stringify(config));
-  localStorage.setItem('cafe-name', cafeName);
-  localStorage.setItem('gaming-cafe-theme', JSON.stringify(currentThemeColor));
-  document.documentElement.style.setProperty(
-    '--primary',
-    `rgb(${currentThemeColor.r}, ${currentThemeColor.g}, ${currentThemeColor.b})`
-  );
-  toast.success('System configuration saved successfully!');
-};
+  const handleSave = () => {
+    localStorage.setItem('systemConfig', JSON.stringify(config));
+    localStorage.setItem('cafe-name', cafeName);
+    localStorage.setItem('gaming-cafe-theme', JSON.stringify(currentThemeColor));
+    document.documentElement.style.setProperty(
+      '--primary',
+      `rgb(${currentThemeColor.r}, ${currentThemeColor.g}, ${currentThemeColor.b})`
+    );
+    toast.success('System configuration saved successfully!');
+  };
 
   const addTimeOption = () => {
     const minutes = parseInt(newTimeOption);
@@ -167,7 +171,7 @@ const handleSave = () => {
             <div>
               <h1 className="text-2xl font-bold text-foreground flex items-center">
                 <Settings className="w-6 h-6 mr-3 text-primary" />
-                System Configuration
+                System Configurationc
               </h1>
               <p className="text-sm text-muted-foreground">Configure gaming center settings and pricing</p>
             </div>
@@ -180,16 +184,42 @@ const handleSave = () => {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-6 py-8">
-        <Tabs defaultValue="rates" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-muted">
-            <TabsTrigger value="rates" className="data-[state=active]:bg-background"><DollarSign className="w-4 h-4 mr-2" />Rates</TabsTrigger>
-            <TabsTrigger value="time" className="data-[state=active]:bg-background"><Clock className="w-4 h-4 mr-2" />Time</TabsTrigger>
-            <TabsTrigger value="night" className="data-[state=active]:bg-background"><Moon className="w-4 h-4 mr-2" />Night Pass</TabsTrigger>
-            <TabsTrigger value="happy" className="data-[state=active]:bg-background"><Sparkles className="w-4 h-4 mr-2" />Happy Hours</TabsTrigger>
-            <TabsTrigger value="packs" className="data-[state=active]:bg-background"><Package className="w-4 h-4 mr-2" />Packs</TabsTrigger>
-            <TabsTrigger value="theme" className="data-[state=active]:bg-background"><Palette className="w-4 h-4 mr-2" />Theme</TabsTrigger>
-          </TabsList>
+     <div className="container mx-auto px-6 py-8">
+  <Tabs defaultValue="rates" className="space-y-6">
+    {/* Tabs Header */}
+    <TabsList className="grid w-full grid-cols-4 bg-muted rounded-lg">
+      <TabsTrigger
+        value="rates"
+        className="flex items-center justify-center data-[state=active]:bg-background"
+      >
+        <DollarSign className="w-4 h-4 mr-2" />
+        Rates / Station
+      </TabsTrigger>
+
+      <TabsTrigger
+        value="happy"
+        className="flex items-center justify-center data-[state=active]:bg-background"
+      >
+        <Sparkles className="w-4 h-4 mr-2" />
+        Happy Hours
+      </TabsTrigger>
+
+      <TabsTrigger
+        value="packs"
+        className="flex items-center justify-center data-[state=active]:bg-background"
+      >
+        <Package className="w-4 h-4 mr-2" />
+        Packs
+      </TabsTrigger>
+
+      <TabsTrigger
+        value="theme"
+        className="flex items-center justify-center data-[state=active]:bg-background"
+      >
+        <Palette className="w-4 h-4 mr-2" />
+        Theme
+      </TabsTrigger>
+    </TabsList>
 
           {/* Hourly Rates */}
           <TabsContent value="rates" className="space-y-6">
@@ -264,6 +294,241 @@ const handleSave = () => {
               </div>
             </Card>
           </TabsContent>
+          {/* Happy Hours */}
+          <TabsContent value="happy" className="space-y-6">
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4 text-foreground">Happy Hours</h3>
+
+              <div className="space-y-4">
+                {/* Existing Happy Hours */}
+                {config.happyHours.map((hh, idx) => (
+                  <div key={idx} className="p-4 border border-border rounded-lg bg-muted/50 flex justify-between items-center">
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {hh.startTime} - {hh.endTime} | ₹{hh.rate}/hr
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {hh.days.length > 0 ? hh.days.join(', ') : 'No days selected'}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => removeHappyHour(idx)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {/* New Happy Hour Form */}
+                <div className="border-t border-border pt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Start Time</Label>
+                      <Input
+                        type="time"
+                        value={newHappyHour.startTime}
+                        onChange={(e) =>
+                          setNewHappyHour((prev) => ({ ...prev, startTime: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label>End Time</Label>
+                      <Input
+                        type="time"
+                        value={newHappyHour.endTime}
+                        onChange={(e) =>
+                          setNewHappyHour((prev) => ({ ...prev, endTime: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Happy Hour Rate (₹/hr)</Label>
+                    <Input
+                      type="number"
+                      value={newHappyHour.rate}
+                      onChange={(e) =>
+                        setNewHappyHour((prev) => ({
+                          ...prev,
+                          rate: parseFloat(e.target.value) || 0,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Applicable Days</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {weekDays.map((day) => (
+                        <Badge
+                          key={day}
+                          variant={
+                            newHappyHour.days.includes(day) ? 'default' : 'secondary'
+                          }
+                          className="cursor-pointer capitalize"
+                          onClick={() =>
+                            setNewHappyHour((prev) => ({
+                              ...prev,
+                              days: prev.days.includes(day)
+                                ? prev.days.filter((d) => d !== day)
+                                : [...prev.days, day],
+                            }))
+                          }
+                        >
+                          {day.slice(0, 3)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      setConfig((prev) => ({
+                        ...prev,
+                        happyHours: [...prev.happyHours, { ...newHappyHour, enabled: true }],
+                      }));
+                      setNewHappyHour({
+                        startTime: '14:00',
+                        endTime: '18:00',
+                        rate: 80,
+                        days: [],
+                      });
+                    }}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Add Happy Hour
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+         {/* Custom Packs */}
+<TabsContent value="packs" className="space-y-6">
+  <Card className="p-6">
+    <h3 className="text-lg font-semibold mb-4 text-foreground">Custom Packs</h3>
+    <div className="space-y-4">
+      {config.customPacks.map((pack) => (
+        <div
+          key={pack.id}
+          className="p-4 border border-border rounded-lg bg-muted/50 flex justify-between items-center"
+        >
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {pack.name} — {pack.duration} mins @ ₹{pack.price}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {pack.description || 'No description'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Valid on: {pack.validStationTypes.join(', ')}
+            </p>
+          </div>
+          <Button
+            onClick={() => removeCustomPack(pack.id)}
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ))}
+
+      {/* Add New Pack */}
+      <div className="border-t border-border pt-4 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Pack Name</Label>
+            <Input
+              value={newCustomPack.name}
+              onChange={(e) =>
+                setNewCustomPack((prev) => ({ ...prev, name: e.target.value }))
+              }
+              placeholder="Enter pack name"
+            />
+          </div>
+
+          <div>
+            <Label>Duration (minutes)</Label>
+            <Input
+              type="number"
+              value={newCustomPack.duration}
+              onChange={(e) =>
+                setNewCustomPack((prev) => ({
+                  ...prev,
+                  duration: parseInt(e.target.value) || 0,
+                }))
+              }
+              placeholder="e.g., 60"
+            />
+          </div>
+
+          <div>
+            <Label>Price (₹)</Label>
+            <Input
+              type="number"
+              value={newCustomPack.price}
+              onChange={(e) =>
+                setNewCustomPack((prev) => ({
+                  ...prev,
+                  price: parseInt(e.target.value) || 0,
+                }))
+              }
+              placeholder="e.g., 200"
+            />
+          </div>
+
+          <div>
+            <Label>Description</Label>
+            <Input
+              value={newCustomPack.description}
+              onChange={(e) =>
+                setNewCustomPack((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+              placeholder="Optional description"
+            />
+          </div>
+        </div>
+
+        {/* Station Type Checkboxes */}
+        <div>
+          <Label>Valid Stations</Label>
+          <div className="flex flex-wrap gap-4 mt-2">
+            {Object.keys(config.hourlyRates).map((station) => (
+              <label key={station} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={newCustomPack.validStationTypes.includes(station)}
+                  onChange={(e) => {
+                    setNewCustomPack((prev) => ({
+                      ...prev,
+                      validStationTypes: e.target.checked
+                        ? [...prev.validStationTypes, station]
+                        : prev.validStationTypes.filter((s) => s !== station),
+                    }));
+                  }}
+                />
+                {station}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <Button onClick={addCustomPack} className="w-full">
+          <Plus className="w-4 h-4 mr-2" /> Add New Pack
+        </Button>
+      </div>
+    </div>
+  </Card>
+</TabsContent>
 
           {/* Theme Configuration */}
           <TabsContent value="theme" className="space-y-6">

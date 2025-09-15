@@ -7,7 +7,6 @@ import {
   Lock,
   Unlock,
   Trash2,
-  User,
   Zap,
   AlertTriangle,
   Settings,
@@ -20,10 +19,8 @@ import { Input } from "@/components/ui/input";
 import AdminWebSocketService from "../../../services/Websockets";
 import SessionPopup from "../../Session/SessionPopup";
 
-//
-// -------------------- Interfaces --------------------
 export type StationType = "PC" | "PS5" | "PS4";
-export type StationStatus = "AVAILABLE" | "OCCUPIED" | "MAINTENANCE"| "OFFLINE";
+export type StationStatus = "AVAILABLE" | "OCCUPIED" | "MAINTENANCE" | "OFFLINE";
 
 export interface Session {
   id: string;
@@ -52,11 +49,9 @@ export interface StationCardProps {
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: () => void;
   updateStationStatus?: (stationId: string, status: StationStatus) => void;
-  currentUserRole: "admin" | "moderator" | "viewer"; // New prop to determine user role
+  currentUserRole: "admin" | "moderator" | "viewer";
 }
 
-//
-// -------------------- Component --------------------
 const StationCard: React.FC<StationCardProps> = ({
   station,
   onAction,
@@ -79,8 +74,6 @@ const StationCard: React.FC<StationCardProps> = ({
 
   const wsService = AdminWebSocketService.getInstance();
 
-  //
-  // -------------------- Effects --------------------
   useEffect(() => {
     wsService.connect();
 
@@ -141,8 +134,6 @@ const StationCard: React.FC<StationCardProps> = ({
     }
   }, [station.currentSession]);
 
-  //
-  // -------------------- Helpers --------------------
   const getStatusConfig = (status: StationStatus) => {
     switch (status) {
       case "AVAILABLE":
@@ -204,15 +195,13 @@ const StationCard: React.FC<StationCardProps> = ({
     }
   };
 
-  //
-  // -------------------- JSX --------------------
-  //
   return (
     <Card
-      className={`card-gaming ${statusConfig.border} ${statusConfig.glow} group relative overflow-hidden h-fit`}
+      onClick={() => setShowSessionPopup(true)}
+      className={`card-gaming ${statusConfig.border} ${statusConfig.glow} group relative overflow-hidden h-fit cursor-pointer`}
     >
-      {/* Header */}
       <div className="p-4 relative z-10">
+        {/* Header */}
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center space-x-2">
             <div className="p-1.5 bg-primary/10 rounded-lg">
@@ -253,88 +242,113 @@ const StationCard: React.FC<StationCardProps> = ({
           </div>
         )}
 
-      {/* Actions */}
-{!showSessionForm && !showLockForm && (
-  <div className="space-y-2">
-    {station.status === "AVAILABLE" && (
-      <Button
-        onClick={() => setShowSessionPopup(true)}
-        className="w-full h-8 text-sm"
-        disabled={station.isLocked}
-      >
-        <Play className="w-3 h-3 mr-1" /> INITIATE
-      </Button>
-    )}
-    {station.status === "OCCUPIED" && (
-      <div className="flex gap-1">
-        <Button
-          onClick={() =>
-            onAction(station.id, "end-session", {
-              sessionId: station.currentSession?.id,
-            })
-          }
-          variant="destructive"
-          className="flex-1 h-8 text-xs"
-        >
-          <Square className="w-3 h-3 mr-1" /> END
-        </Button>
-        <Button
-          onClick={() =>
-            onAction(station.id, "add-time", {
-              sessionId: station.currentSession?.id,
-              minutes: 30,
-            })
-          }
-          variant="secondary"
-          className="flex-1 h-8 text-xs"
-        >
-          +30M
-        </Button>
-      </div>
-    )}
-    {station.status === "MAINTENANCE" && (
-      <Button disabled className="w-full h-8 text-xs">
-        <Settings className="w-3 h-3 mr-1" /> MAINTENANCE
-      </Button>
-    )}
+        {/* Actions */}
+        {!showSessionForm && !showLockForm && (
+          <div className="space-y-2">
+            {station.status === "AVAILABLE" && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSessionPopup(true);
+                }}
+                className="w-full h-8 text-sm"
+                disabled={station.isLocked}
+              >
+                <Play className="w-3 h-3 mr-1" /> INITIATE
+              </Button>
+            )}
+            {station.status === "OCCUPIED" && (
+              <div className="flex gap-1">
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAction(station.id, "end-session", {
+                      sessionId: station.currentSession?.id,
+                    });
+                  }}
+                  variant="destructive"
+                  className="flex-1 h-8 text-xs"
+                >
+                  <Square className="w-3 h-3 mr-1" /> END
+                </Button>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAction(station.id, "add-time", {
+                      sessionId: station.currentSession?.id,
+                      minutes: 30,
+                    });
+                  }}
+                  variant="secondary"
+                  className="flex-1 h-8 text-xs"
+                >
+                  +30M
+                </Button>
+              </div>
+            )}
+            {station.status === "MAINTENANCE" && (
+              <Button
+                onClick={(e) => e.stopPropagation()}
+                disabled
+                className="w-full h-8 text-xs"
+              >
+                <Settings className="w-3 h-3 mr-1" /> MAINTENANCE
+              </Button>
+            )}
 
-    <div className="flex gap-1">
-      <Button
-        onClick={() =>
-          station.isLocked ? onAction(station.id, "unlock") : setShowLockForm(true)
-        }
-        variant="outline"
-        size="sm"
-        className="h-7 text-xs"
-      >
-        {station.isLocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-      </Button>
-      <Button
-        onClick={() => onAction(station.id, "raise-hand")}
-        variant="outline"
-        size="sm"
-        className="h-7 text-xs"
-      >
-        <Hand className="w-3 h-3" />
-      </Button>
-    </div>
+            <div className="flex gap-1">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  station.isLocked
+                    ? onAction(station.id, "unlock")
+                    : setShowLockForm(true);
+                }}
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+              >
+                {station.isLocked ? (
+                  <Unlock className="w-3 h-3" />
+                ) : (
+                  <Lock className="w-3 h-3" />
+                )}
+              </Button>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction(station.id, "raise-hand");
+                }}
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+              >
+                <Hand className="w-3 h-3" />
+              </Button>
+            </div>
 
-    {currentUserRole === "admin" && (
-      <Button
-        onClick={onDelete}
-        variant="outline"
-        size="sm"
-        className="h-7 text-xs text-error"
-      >
-        <Trash2 className="w-3 h-3" />
-      </Button>
-    )}
-  </div>
-)}
+            {currentUserRole === "admin" && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs text-error"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Session Form */}
         {showSessionForm && (
-          <div className="mt-3 space-y-2 border p-3 rounded-md">
+          <div
+            className="mt-3 space-y-2 border p-3 rounded-md"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Input
               placeholder="Player name"
               value={sessionData.customerName}
@@ -375,11 +389,20 @@ const StationCard: React.FC<StationCardProps> = ({
               placeholder="Prepaid ₹"
             />
             <div className="flex gap-2">
-              <Button onClick={handleStartSession} className="flex-1 h-8 text-sm">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartSession();
+                }}
+                className="flex-1 h-8 text-sm"
+              >
                 <Zap className="w-3 h-3 mr-1" /> LAUNCH
               </Button>
               <Button
-                onClick={() => setShowSessionForm(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSessionForm(false);
+                }}
                 variant="secondary"
                 className="flex-1 h-8 text-sm"
               >
@@ -391,7 +414,10 @@ const StationCard: React.FC<StationCardProps> = ({
 
         {/* Lock Form */}
         {showLockForm && (
-          <div className="mt-3 space-y-2 border p-3 rounded-md">
+          <div
+            className="mt-3 space-y-2 border p-3 rounded-md"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Input
               placeholder="Assign to user (optional)"
               value={lockUser}
@@ -400,7 +426,8 @@ const StationCard: React.FC<StationCardProps> = ({
             />
             <div className="flex gap-2">
               <Button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onAction(station.id, "lock", {
                     assignedUser: lockUser || undefined,
                   });
@@ -412,7 +439,8 @@ const StationCard: React.FC<StationCardProps> = ({
                 <Lock className="w-3 h-3 mr-1" /> LOCK
               </Button>
               <Button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setShowLockForm(false);
                   setLockUser("");
                 }}
@@ -427,14 +455,16 @@ const StationCard: React.FC<StationCardProps> = ({
       </div>
 
       {/* Session Popup */}
-      <SessionPopup
-        station={station}
-        isOpen={showSessionPopup}
-        onClose={() => setShowSessionPopup(false)}
-        onAction={onAction}
-        onDelete={onDelete}
-        userRole={currentUserRole}
-      />
+      <div onClick={(e) => e.stopPropagation()}>
+        <SessionPopup
+          station={station}
+          isOpen={showSessionPopup}
+          onClose={() => setShowSessionPopup(false)}
+          onAction={onAction}
+          onDelete={onDelete}
+          userRole={currentUserRole}
+        />
+      </div>
     </Card>
   );
 };

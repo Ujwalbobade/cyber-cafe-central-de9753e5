@@ -185,21 +185,122 @@ const AnalyticsHub: React.FC = () => {
     );
   }
 
-  if (!analyticsData) {
-    return (
-      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-2xl font-gaming font-bold text-foreground">
-            No Analytics Data Available
-          </p>
-          <p className="text-muted-foreground">
-            Try changing the time range or check back later.
-          </p>
-        </div>
-      </div>
-    );
-  }
+// Instead of returning, show skeleton state inside the page
+if (!analyticsData) {
+  return (
+    <div className="min-h-screen bg-gradient-hero p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
 
+        {/* Back Button */}
+        <div>
+          <Button
+            variant="outline"
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Header + Controls */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
+          <div>
+            <h1 className="text-4xl font-gaming font-bold text-foreground mb-2">
+              Analytics Hub
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Comprehensive insights and performance metrics
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {/* Time Range Selector */}
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-40 bg-card border-border">
+                <SelectValue placeholder="Select Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="24hours">Last 24 Hours</SelectItem>
+                <SelectItem value="7days">Last 7 Days</SelectItem>
+                <SelectItem value="30days">Last 30 Days</SelectItem>
+                <SelectItem value="90days">Last 3 Months</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Live/Static toggle */}
+            <Button
+              variant="outline"
+              onClick={() => setRealTimeUpdates(!realTimeUpdates)}
+              className={realTimeUpdates ? "border-success text-success" : ""}
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              {realTimeUpdates ? "Live Updates" : "Static View"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabs remain visible */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-card">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="revenue">Revenue</TabsTrigger>
+            <TabsTrigger value="stations">Stations</TabsTrigger>
+            <TabsTrigger value="games">Games</TabsTrigger>
+            <TabsTrigger value="insights">Insights</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <AlertTriangle className="w-10 h-10 text-warning mb-3" />
+              <p className="text-muted-foreground text-lg">
+                ⚠️ No analytics data available.  
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You can still browse tabs and adjust controls.
+              </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="revenue">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <DollarSign className="w-10 h-10 text-muted mb-3" />
+              <p className="text-muted-foreground text-lg">
+                No revenue data available for this range.
+              </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="stations">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Activity className="w-10 h-10 text-muted mb-3" />
+              <p className="text-muted-foreground text-lg">
+                No station performance data available.
+              </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="games">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Zap className="w-10 h-10 text-muted mb-3" />
+              <p className="text-muted-foreground text-lg">
+                No game popularity data available.
+              </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="insights">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Target className="w-10 h-10 text-muted mb-3" />
+              <p className="text-muted-foreground text-lg">
+                No insights available at the moment.
+              </p>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="min-h-screen bg-gradient-hero p-6">
       <div className="max-w-7xl mx-auto space-y-6">

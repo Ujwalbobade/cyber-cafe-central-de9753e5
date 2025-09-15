@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table"
 import AdminWebSocketService from "../../../services/Websockets"
 import SessionPopup from "../../Session/SessionPopup"
+import { Hand } from "lucide-react" 
 
 interface Station {
   id: string
@@ -165,6 +166,7 @@ const StationTableView: React.FC<StationTableViewProps> = ({
             <TableHead className="font-gaming text-foreground">Status</TableHead>
             <TableHead className="font-gaming text-foreground">Rate</TableHead>
             <TableHead className="font-gaming text-foreground">Session</TableHead>
+            <TableHead className="font-gaming text-foreground">Hand Raise</TableHead>
             <TableHead className="font-gaming text-foreground text-right">
               Actions
             </TableHead>
@@ -192,6 +194,21 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                   ₹{station.hourlyRate}/hr
                 </span>
               </TableCell>
+               {/* 👇 Hand Raise */}
+      <TableCell>
+        {station.handRaised ? (
+          <Badge
+            variant="outline"
+            className="bg-yellow-100 text-yellow-800 border-yellow-300 flex items-center"
+          >
+            <Hand className="w-3 h-3 mr-1" />
+            Hand Raised
+          </Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">-</span>
+        )}
+      </TableCell>
+
               <TableCell>
                 {station.currentSession ? (
                   <div className="space-y-1">
