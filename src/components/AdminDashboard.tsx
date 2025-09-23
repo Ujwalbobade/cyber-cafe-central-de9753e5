@@ -36,6 +36,7 @@ import StationTableView from './Station/views/StationTableView';
 import SessionPopup from "./Session/SessionPopup";
 import StationModal from './Station/StationModal';
 import { Station } from "@/components/Types/Stations";
+import { getSystemConfig } from '../services/apis/api';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -60,9 +61,16 @@ import {
   endSession,
   addTime,
 } from "../services/apis/api";
+import UserManagement from './UserInfo/UserManagement';
 
 interface AdminDashboardProps {
   onLogout: () => void;
+  currentUser: {
+    username: string;
+    email: string;
+    role: string;
+    loginTime?: string;
+  } | null;
 }
 
 interface User {
@@ -75,13 +83,14 @@ interface User {
 
 
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout,currentUser }) => {
   const navigate = useNavigate();
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  //const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [systemConfig, setSystemConfig] = useState<any>(null);
 
   const wsRef = React.useRef<WebSocket | null>(null);
 
@@ -169,29 +178,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     };
   }, []);
 
-
-  // Load current user info
   useEffect(() => {
-    const loadUser = () => {
-      const userData = localStorage.getItem('currentUser');
-      if (userData) {
-        try {
-          const user = JSON.parse(userData);
-          setCurrentUser({
-            ...user,
-            loginTime: new Date().toISOString() // Set current time as login time
-          });
-        } catch (error) {
-          console.error('Failed to parse user data:', error);
-        }
-      }
-    };
+  const fetchConfig = async () => {
+    try {
+      const config = await getSystemConfig();
+      setSystemConfig(config);
+    } catch (err) {
+      console.error("Failed to fetch system configuration:", err);
+    }
+  };
 
-    loadUser();
-  }, []);
+  fetchConfig();
+}, []);
 
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'stations'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'stations' | 'userManagement'>('dashboard');
   const [stationFilter, setStationFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [stationView, setStationView] = useState<'list' | 'grid' | 'table'>('list');
   const [showAddStation, setShowAddStation] = useState(false);
@@ -525,7 +526,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </div>
                 <div>
                   <h1 className="text-xl md:text-2xl font-gaming font-bold bg-gradient-gaming bg-clip-text text-transparent">
-                    {cafeName}
+                    {systemConfig?.cafeName || cafeName}
                   </h1>
                   <p className="text-xs md:text-sm text-muted-foreground mt-0.5 tracking-wider font-semibold">
                     Cyber Lounge Control • Manage rigs, sessions & settings
@@ -605,10 +606,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </Button>
                   </DropdownMenuTrigger>
 
-                  <DropdownMenuContent
-                    align="end"
-                    className="min-w-[12rem] sm:w-56 card-gaming p-2"
-                  >
+                  <DropdownMenuContent align="end" className="min-w-[12rem] sm:w-56 card-gaming p-2">
+                    {/* User Info */}
                     <DropdownMenuLabel className="font-gaming">
                       <div className="flex flex-col">
                         <span className="text-xs text-muted-foreground truncate">{currentUser?.email}</span>
@@ -618,6 +617,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
                     <DropdownMenuSeparator />
 
+                    {/* Edit Profile for everyone */}
+                    <DropdownMenuItem
+                      className="text-accent font-gaming cursor-pointer"
+                      onClick={() => setActiveTab('userManagement')}
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Edit Profile
+                    </DropdownMenuItem>
+
+                    {/* Only admins see Manage Users */}
+                    {currentUser?.role === "admin" && (
+                      <DropdownMenuItem
+                        className="text-primary font-gaming cursor-pointer"
+                        onClick={() => setActiveTab('userManagement')}
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Manage Users
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuSeparator />
+
+                    {/* Logout */}
                     <DropdownMenuItem
                       className="text-warning font-gaming cursor-pointer"
                       onClick={() => setShowLogoutDialog(true)}
@@ -752,6 +774,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </Card>
           </div>
         )}
+        {activeTab === 'userManagement' && (
+          <div className="space-y-6 animate-slide-in-gaming">
+            <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground mb-4">
+              USER MANAGEMENT
+            </h2>
+            <UserManagement loggedInUser={currentUser} />
+          </div>
+        )}
 
         {activeTab === 'stations' && (
           <div className="space-y-6 animate-slide-in-gaming">
@@ -767,6 +797,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 DEPLOY NEW RIG
               </Button>
             </div>
+
 
             {/* Filter and View Controls */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -862,7 +893,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         onAction={handleStationAction}
                         onDelete={() => showDeleteConfirmation(station)}
                         updateStationStatus={updateStationStatus}
-                        currentUserRole={currentUser.role as "admin"| "moderator"} // ✅ fix
+                        currentUserRole={currentUser.role as "admin" | "moderator"} // ✅ fix
                       />
                     </div>
                   ))}
@@ -905,7 +936,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   onStationAction={handleStationAction}
                   onDelete={showDeleteConfirmation}
                   updateStationStatus={updateStationStatus}
-                  currentUserRole={currentUser.role as "admin" | "moderator"} 
+                  currentUserRole={currentUser.role as "admin" | "moderator"}
                 />
               </Card>
             )}
@@ -920,9 +951,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           onSave={handleAddStation} // reuse the same handler
         />
       )}
-
-      {/* Station Popup */}
-
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog
         isOpen={stationToDelete !== null}

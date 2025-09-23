@@ -15,7 +15,7 @@ import {
   Activity, Calendar, Target, Zap, Settings, Download
 } from 'lucide-react';
 import StatsCard from '../StatsCard';
-import { getAnalytics, getRealTimeAnalytics } from '@/services/apis/api';
+import { getAnalytics, getRealTimeAnalytics ,getTotalStations} from '@/services/apis/api';
 
 // Types
 export type ConnectionState = "connected" | "disconnected" | "error";
@@ -39,6 +39,7 @@ const AnalyticsHub: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const [totalStations, setTotalStations] = useState(0);
   const navigate = useNavigate();
 
   const wsRef = React.useRef<WebSocket | null>(null);
@@ -53,6 +54,9 @@ const AnalyticsHub: React.FC = () => {
     const loadAnalytics = async () => {
       try {
         const data = await getAnalytics(timeRange);
+
+              // Delay rendering for 10 seconds
+      await new Promise(resolve => setTimeout(resolve, 10000));
         if (isMounted && data) {
           setAnalyticsData(data);
           setLoading(false);
@@ -133,6 +137,7 @@ const AnalyticsHub: React.FC = () => {
 
       connectAnalyticsWebSocket();
     }
+    
 
     return () => {
       isMounted = false;
@@ -141,6 +146,18 @@ const AnalyticsHub: React.FC = () => {
       }
     };
   }, [timeRange, realTimeUpdates]);
+  // Fetch stations count once
+useEffect(() => {
+  const fetchStations = async () => {
+    try {
+      const count = await getTotalStations();
+      setTotalStations(count);
+    } catch (err) {
+      console.error("Failed to fetch total stations:", err);
+    }
+  };
+  fetchStations();
+}, []);
 
   // Handle export report
   const handleExportReport = async () => {
@@ -384,7 +401,7 @@ if (!analyticsData) {
           />
           <StatsCard
             title="Active Stations"
-            value={`${analyticsData.activeStations}/20`}
+            value={`${analyticsData.activeStations}/${totalStations}`}
             icon={<Activity className="w-6 h-6" />}
             gradient="bg-accent"
             change="90% operational"

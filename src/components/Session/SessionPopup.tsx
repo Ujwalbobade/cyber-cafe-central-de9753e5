@@ -28,6 +28,10 @@ import {
 import { getSystemConfig } from "@/services/apis/api";
 import StationModal from "@/components/Station/StationModal";
 import { Station } from "@/components/Types/Stations";
+import { SystemConfiguration } from "@/components/SystemConfiguration/SystemConfig";
+import { useSystemConfig } from "@/utils/SystemConfigContext";
+ // or wherever it's defined
+
 
 interface SessionPopupProps {
   station: Station | null;
@@ -129,7 +133,7 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
   userRole,
 }) => {
   const [allowedTimes, setAllowedTimes] = useState<number[]>([15, 30, 60, 120]);
-  const [packs, setPacks] = useState<Pack[]>([
+  /*const [packs, setPacks] = useState<Pack[]>([
     { label: "15m", minutes: 15, price: 37.5, category: "quick" },
     { label: "30m", minutes: 30, price: 75, category: "quick" },
     { label: "1h", minutes: 60, price: 150, category: "quick" },
@@ -137,11 +141,14 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
     { label: "4h", minutes: 240, price: 600, category: "quick" },
     { label: "Day Pass", minutes: 720, price: 1300, category: "custom" },
     { label: "Weekend Pass", minutes: 1440, price: 2500, category: "custom" },
-  ]);
+  ]);*/
+  const [packs, setPacks] = useState<Pack[]>([]);
 
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [showLockForm, setShowLockForm] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const { config } = useSystemConfig();
+  
 
   const [sessionData, setSessionData] = useState({
     customerName: "",
@@ -155,15 +162,31 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
     notes: "",
   });
 
-  useEffect(() => {
-    getSystemConfig()
-      .then((data) => {
-        if (data.allowedTimes && Array.isArray(data.allowedTimes)) {
-          setAllowedTimes(data.allowedTimes);
-        }
-      })
-      .catch((err) => console.error("Failed to fetch config:", err));
-  }, []);
+
+useEffect(() => {
+  if (!station || !config) return;
+
+  const times = config.timeOptions || [15, 30, 60, 120];
+  setAllowedTimes(times);
+
+  const quickPacks: Pack[] = times.map((time) => ({
+    label: time < 60 ? `${time}m` : `${time / 60}h`,
+    minutes: time,
+    price: (station.hourlyRate || 100) * time / 60,
+    category: "quick",
+  }));
+
+  const customPacks: Pack[] = (config.customPacks || [])
+    .filter(p => !p.validStationTypes || p.validStationTypes.includes(station.type))
+    .map(pack => ({
+      label: pack.name,
+      minutes: pack.duration,
+      price: pack.price,
+      category: "custom",
+    }));
+
+  setPacks([...quickPacks, ...customPacks]);
+}, [station, config]);
 
   if (!station) return null;
   const rolePerms = permissions[userRole];

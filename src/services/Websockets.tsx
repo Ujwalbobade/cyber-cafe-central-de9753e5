@@ -1,5 +1,6 @@
 // types
 export type ConnectionState = "connected" | "disconnected" | "error";
+
 function decodeJwt(token: string) {
   try {
     return JSON.parse(atob(token.split(".")[1]));
@@ -8,126 +9,51 @@ function decodeJwt(token: string) {
   }
 }
 
-async function ensureFreshToken(): Promise<string> {
+// ✅ Fetch fresh token (user first, then dummy)
+async function fetchFreshToken(): Promise<string> {
+  const BUFFER_MS = 30_000; // 30 sec buffer
   let token = localStorage.getItem("token") || localStorage.getItem("token-dummy");
-  if (token) {
-    const payload = decodeJwt(token);
-    const exp = payload?.exp ? payload.exp * 1000 : 0;
-    if (Date.now() < exp - 5 * 60 * 1000) {
-      // still valid for 5 more min
-      return token;
-    }
-  }
 
-  // fetch new dummy token
-  const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
-  const data = await res.json();
-  if (data.token) {
-    token = data.token;
-    localStorage.setItem("token-dummy", token);
-    console.log("🔄 Refreshed dummy token ✅");
-    return token;
-  }
-  return "";
-}
-const getApiBaseUrl = () => {
-  const params = new URLSearchParams(window.location.search);
-  const override = params.get("api") || localStorage.getItem("apiBase");
+  const isValid = (t: string) => {
+    const payload = decodeJwt(t);
+    if (!payload?.exp) return false;
+    return Date.now() < payload.exp * 1000 - BUFFER_MS;
+  };
 
-  if (override) {
-    return `${override.replace(/\/+$/, "")}/api`;
-  }
-
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:8087/api`;
-};
-const API_BASE_URL = getApiBaseUrl();
-
-export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
-  let token: string | null = null;
-
-  try {
-    // Always fetch dummy token before any request
-    const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!res.ok) {
-      console.warn(`⚠️ Dummy token endpoint returned ${res.status}, proceeding without token`);
-    } else {
-      const data = await res.json();
-      if (data.token) {
-        token = data.token;
-        localStorage.setItem("token-dummy", token);
-        console.log("Fetched dummy token ✅");
-      }
-    }
-  } catch (err) {
-    console.error("Failed to fetch dummy token", err);
-    // Try to use existing token from localStorage
-    token = localStorage.getItem("token") || localStorage.getItem("token-dummy");
-    if (token) {
-      console.log("Using existing token from localStorage");
-    }
-  } 
-  
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-    credentials: "include",
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.message || `Request failed: ${response.status}`);
-  }
-  return data;
-};
-
-
-// ✅ Always get a fresh token (real or dummy) before WS connection
-async function ensureValidToken(): Promise<string> {
-  let token = localStorage.getItem("token");
-
-  if (token) return token; // real user token exists
+  if (token && isValid(token)) return token;
 
   try {
     const res = await fetch(`${API_BASE_URL}/auth/dummy-admin-token`);
+    if (!res.ok) throw new Error(`Failed to fetch dummy token: ${res.status}`);
     const data = await res.json();
     if (data.token) {
-      token = data.token;
-      localStorage.setItem("token-dummy", token);
-      console.log("Fetched fresh dummy token ✅");
-      return token;
+      localStorage.setItem("token-dummy", data.token);
+      console.log("🔄 Refreshed dummy token ✅");
+      return data.token;
     }
   } catch (err) {
-    console.error("Failed to fetch dummy token", err);
+    console.error("Error fetching dummy token:", err);
   }
 
-  return "";
+  return token || "";
 }
 
-async function getWebSocketUrl(): Promise<string> {
-  const token = await ensureFreshToken();
+const API_BASE_URL = (() => {
   const params = new URLSearchParams(window.location.search);
-  const override =
-    params.get("ws") || params.get("wsBase") || localStorage.getItem("wsBase");
+  const override = params.get("api") || localStorage.getItem("apiBase");
+  if (override) return `${override.replace(/\/+$/, "")}/api`;
+  return `${window.location.protocol}//${window.location.hostname}:8087/api`;
+})();
+
+// ✅ WebSocket URL generator
+async function getWebSocketUrl(): Promise<string> {
+  const token = await fetchFreshToken();
+  const params = new URLSearchParams(window.location.search);
+  const override = params.get("ws") || localStorage.getItem("wsBase");
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const hostname = window.location.hostname;
-
   let baseUrl = override ? override.replace(/\/+$/, "") : `${wsProtocol}//${hostname}:8087`;
-  if (!/^wss?:\/\//.test(baseUrl)) {
-    baseUrl = `${wsProtocol}//${baseUrl}`;
-  }
-
+  if (!/^wss?:\/\//.test(baseUrl)) baseUrl = `${wsProtocol}//${baseUrl}`;
   return `${baseUrl}/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 }
 
@@ -137,7 +63,6 @@ export default class AdminWebSocketService {
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
   private readonly reconnectInterval = 3000;
-  private subscribed = false;
 
   public onMessage: ((data: any) => void) | null = null;
   public onConnectionChange: ((state: ConnectionState) => void) | null = null;
@@ -151,92 +76,62 @@ export default class AdminWebSocketService {
 
   private constructor() {}
 
-   async connect(): Promise<void> {
-  if (
-    this.socket &&
-    (this.socket.readyState === WebSocket.OPEN ||
-      this.socket.readyState === WebSocket.CONNECTING)
-  ) {
-    console.log("WebSocket already connected or connecting, skipping...");
-    return;
-  }
+  async connect(): Promise<void> {
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
+      return; // already connected
+    }
 
-  // Always get fresh token before each connect
-  const token = await ensureValidToken();
-  if (!token) {
-    console.warn("❌ Cannot connect WebSocket without a valid token");
-    return;
-  }
+    const WS_URL = await getWebSocketUrl();
+    if (!WS_URL) {
+      console.warn("❌ Cannot connect WebSocket without a valid token");
+      return;
+    }
 
-  const WS_URL = await getWebSocketUrl(); // always includes fresh token
-  console.log("Connecting with WS URL:", WS_URL);
+    this.socket = new WebSocket(WS_URL);
+    this.socket.onopen = () => {
+      console.log("Admin WebSocket connected ✅");
+      this.reconnectAttempts = 0;
+      this.onConnectionChange?.("connected");
+      this.send({ type: "subscribe_analytics" });
+    };
 
-  this.socket = new WebSocket(WS_URL);
-
-  this.socket.onopen = () => {
-    console.log("Admin WebSocket connected ✅");
-    this.reconnectAttempts = 0;
-    this.onConnectionChange?.("connected");
-    this.send({ type: "subscribe_analytics" });
-  };
-
-  this.socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      // Handle backend SessionUpdateMessage format
-      if (data.type === "session_update" || data.status) {
-        const sessionUpdate = {
-          type: "SESSION_UPDATE",
-          sessionId: data.sessionId,
-          stationId: data.stationId,
-          userId: data.userId,
-          gameId: data.gameId,
-          status: data.status,
-          currentTime: data.currentTime,
-          endTime: data.endTime,
-          amountPaid: data.amountPaid
-        };
-        console.log("📡 Session update received:", sessionUpdate);
-        this.onMessage?.(sessionUpdate);
-      } else {
+    this.socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
         this.onMessage?.(data);
+      } catch (error) {
+        console.error("Error parsing WS message", event.data, error);
       }
-    } catch (error) {
-      console.error("Error parsing WS message", event.data, error);
-    }
-  };
+    };
 
-  this.socket.onclose = async (event) => {
-    console.log("Admin WebSocket disconnected ❌", event);
-    this.onConnectionChange?.("disconnected");
-    this.socket = null;
+    this.socket.onclose = async () => {
+      this.socket = null;
+      this.onConnectionChange?.("disconnected");
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        setTimeout(async () => {
+          this.reconnectAttempts++;
+          await this.connect();
+        }, this.reconnectInterval);
+      }
+    };
 
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      setTimeout(async () => {
-        this.reconnectAttempts++;
-        await this.connect();
-      }, this.reconnectInterval);
-    }
-  };
+    this.socket.onerror = (error) => {
+      console.error("WebSocket error", error);
+      this.onConnectionChange?.("error");
+    };
+  }
 
-  this.socket.onerror = (error) => {
-    console.error("WebSocket error", error);
-    this.onConnectionChange?.("error");
-  };
-}
   disconnect(): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.send({ type: "unsubscribe_analytics" });
       this.socket.close(1000, "Client disconnect");
       this.socket = null;
-      this.subscribed = false;
       console.log("Admin WebSocket disconnected by client ✅");
     }
   }
 
   send(message: object): void {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
     }
   }
@@ -249,7 +144,7 @@ export default class AdminWebSocketService {
     this.send({ type: "request_real_time_data" });
   }
 
-  public isConnected(): boolean {
-    return this.socket?.readyState === WebSocket.OPEN;
-  }
+public isConnected(): boolean {
+  return this.socket != null && this.socket.readyState === WebSocket.OPEN;
+}
 }

@@ -10,7 +10,7 @@ import { login, register } from "@/services/apis/api";
 import AdminWebSocketService, { ConnectionState } from "@/services/Websockets";
 
 interface LoginPageProps {
-  onLogin: (token: string) => void;
+  onLogin: (token: string, userInfo: any) => void;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
@@ -21,7 +21,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     confirmPassword: '',
     email: '',
     role: 'user',
-    fullName: '',      // new
+    fullName: '',     
     phoneNumber: '',
   });
   const [loading, setLoading] = useState(false);
@@ -39,81 +39,82 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault(); // ⛔ prevent page reload
-    setLoading(true);
-    try {
-      if (mode === "login") {
-        // const data = await login(credentials.username, credentials.password);
+  if (e) e.preventDefault();
+  setLoading(true);
 
-        const data = await login(credentials.username, credentials.password);
-        const token = data?.token;
+  try {
+    if (mode === "login") {
+      const data = await login(credentials.username, credentials.password);
+      const token = data?.token;
+      console.log("Login response data:", data);
+      console.log("Extracted token:", token);
 
-        if (token) {
-          // Store the authentication token
-          localStorage.setItem('adminToken', token);
+      if (token) {
+        const userInfo = {
+          username: data.user?.username || credentials.username,
+          email: data.user?.email || "",
+          role: data.user?.role || "admin",
+        };
 
-          // Store user info along with token
-          localStorage.setItem('currentUser', JSON.stringify({
-            username: data.user?.username || credentials.username,
-            email: data.user?.email || '',
-            role: data.user?.role || 'admin'
-          }));
+        // Save to localStorage
+        localStorage.setItem("adminToken", token);
+        localStorage.setItem("currentUser", JSON.stringify(userInfo));
 
-          onLogin(token);
-        }
-        // const token = data?.token || "mock-jwt-token";
-        //  onLogin(token);
+        // ✅ Pass token + user back up to App
+        onLogin(token, userInfo);
 
         toast({
           title: "Welcome back!",
           description: "Successfully logged into Gaming Cafe Admin",
         });
-      } else {
-        if (credentials.password !== credentials.confirmPassword) {
-          toast({
-            title: "Password Mismatch",
-            description: "Confirm password does not match.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
-
-        await register({
-          username: credentials.username,
-          email: credentials.email,
-          password: credentials.password,
-          role: credentials.role,
-          fullName: credentials.fullName,   // ✅ new
-          phoneNumber: credentials.phoneNumber, // ✅ new
-        });
-
-        toast({
-          title: "Account Created",
-          description: `User "${credentials.username}" registered successfully.`,
-        });
-
-        setMode("login");
-        setCredentials({
-          username: "",
-          email: "",
-          password: "",
-          confirmPassword: "",
-          role: "user",
-          fullName: '',
-          phoneNumber: '',
-        });
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error?.message || "Server error",
-        variant: "destructive",
+    } else {
+      if (credentials.password !== credentials.confirmPassword) {
+        toast({
+          title: "Password Mismatch",
+          description: "Confirm password does not match.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      await register({
+        username: credentials.username,
+        email: credentials.email,
+        password: credentials.password,
+        role: credentials.role,
+        fullName: credentials.fullName,
+        phoneNumber: credentials.phoneNumber,
       });
-    } finally {
-      setLoading(false);
+
+      toast({
+        title: "Account Created",
+        description: `User "${credentials.username}" registered successfully.`,
+      });
+
+      // Reset to login mode
+      setMode("login");
+      setCredentials({
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        role: "user",
+        fullName: "",
+        phoneNumber: "",
+      });
     }
-  };
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error?.message || "Server error",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"

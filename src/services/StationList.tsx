@@ -51,6 +51,7 @@ const StationList: React.FC = () => {
           onAction={handleAction}
           onDelete={() => handleDelete(station)}
           updateStationStatus={updateStationStatus}
+          currentUserRole="admin"
         />
       ))}
     </div>
