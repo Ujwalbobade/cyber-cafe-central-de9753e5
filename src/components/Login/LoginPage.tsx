@@ -53,12 +53,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         const userInfo = {
           username: data.user?.username || credentials.username,
           email: data.user?.email || "",
-          role: data.user?.role || "admin",
+          role: data.role || "user",
         };
 
         // Save to localStorage
         localStorage.setItem("adminToken", token);
         localStorage.setItem("currentUser", JSON.stringify(userInfo));
+        console.log("User info saved:", userInfo);
 
         // ✅ Pass token + user back up to App
         onLogin(token, userInfo);

@@ -3,7 +3,7 @@ import { Monitor, Gamepad2, Lock, Unlock, Hand } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import AdminWebSocketService from "../../../services/Websockets"
 import SessionPopup from "../../Session/SessionPopup"
-import { Station } from "@/components/Types/Stations"
+import { Station } from "@/components/Station/Types/Stations"
 
 
 

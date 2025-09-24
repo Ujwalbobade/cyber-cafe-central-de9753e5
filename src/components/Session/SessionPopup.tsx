@@ -27,10 +27,10 @@ import {
 } from "@/components/ui/dialog";
 import { getSystemConfig } from "@/services/apis/api";
 import StationModal from "@/components/Station/StationModal";
-import { Station } from "@/components/Types/Stations";
+import { Station } from "@/components/Station/Types/Stations";
 import { SystemConfiguration } from "@/components/SystemConfiguration/SystemConfig";
 import { useSystemConfig } from "@/utils/SystemConfigContext";
- // or wherever it's defined
+// or wherever it's defined
 
 
 interface SessionPopupProps {
@@ -148,7 +148,9 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
   const [showLockForm, setShowLockForm] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const { config } = useSystemConfig();
-  
+  const [activeHappyHour, setActiveHappyHour] = useState<any | null>(null);
+  const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
+
 
   const [sessionData, setSessionData] = useState({
     customerName: "",
@@ -162,31 +164,92 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
     notes: "",
   });
 
+  useEffect(() => {
+    if (!station || !config) {
+      console.log("⏭️ Skipping useEffect — station or config missing:", { station, config });
+      return;
+    }
 
-useEffect(() => {
-  if (!station || !config) return;
+    console.log("⚡ Running pack builder for station:", station);
+    console.log("📦 System Config:", config);
 
-  const times = config.timeOptions || [15, 30, 60, 120];
-  setAllowedTimes(times);
+    const times = config.timeOptions || [15, 30, 60, 120];
+    setAllowedTimes(times);
+    console.log("⏱️ Allowed Times:", times);
 
-  const quickPacks: Pack[] = times.map((time) => ({
-    label: time < 60 ? `${time}m` : `${time / 60}h`,
-    minutes: time,
-    price: (station.hourlyRate || 100) * time / 60,
-    category: "quick",
-  }));
+    const now = new Date();
+    const currentDay = now.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
 
-  const customPacks: Pack[] = (config.customPacks || [])
-    .filter(p => !p.validStationTypes || p.validStationTypes.includes(station.type))
-    .map(pack => ({
-      label: pack.name,
-      minutes: pack.duration,
-      price: pack.price,
-      category: "custom",
-    }));
+    console.log("🕒 Current Day:", currentDay, "| Current Time:", currentTime);
 
-  setPacks([...quickPacks, ...customPacks]);
-}, [station, config]);
+    const foundHH = config.happyHours.find((hh) => {
+      console.log("🔎 Checking Happy Hour:", {
+        days: hh.days,
+        enabled: hh.enabled,
+        start: hh.startTime,
+        end: hh.endTime,
+      });
+
+      if (!hh.enabled) {
+        console.log("❌ Skipping: Not enabled");
+        return false;
+      }
+
+      if (!hh.days.map(d => d.toLowerCase()).includes(currentDay)) {
+        console.log("❌ Skipping: Day mismatch", currentDay, "not in", hh.days);
+        return false;
+      }
+
+      const [sh, sm] = hh.startTime.split(":").map(Number);
+      const [eh, em] = hh.endTime.split(":").map(Number);
+      const start = sh * 60 + sm;
+      const end = eh * 60 + em;
+
+      console.log("⌛ Time Range:", start, "-", end, "| Current:", currentTime);
+
+      const inTime = currentTime >= start && currentTime <= end;
+      if (!inTime) console.log("❌ Skipping: Outside time window");
+
+      return inTime;
+    });
+
+    console.log("🎉 Found Happy Hour:", foundHH);
+
+    setActiveHappyHour(foundHH || null);
+
+    const hourlyRate = foundHH ? foundHH.rate : station.hourlyRate || 100;
+    console.log("💰 Effective Hourly Rate:", hourlyRate);
+
+    const quickPacks: Pack[] = times.map((time) => {
+      const price = (hourlyRate * time) / 60;
+      console.log(`⚡ Quick Pack -> ${time} mins : ₹${price}`);
+      return {
+        label: time < 60 ? `${time}m` : `${time / 60}h`,
+        minutes: time,
+        price,
+        category: "quick",
+      };
+    });
+
+
+    const customPacks: Pack[] = (config.packs || [])
+      .filter((p) => p.enabled)  // ✅ only use enabled packs
+      .filter((p) => !p.validStationTypes.length || p.validStationTypes.includes(station.type))
+      .map((pack) => {
+        console.log(`🎨 Custom Pack -> ${pack.name} (${pack.duration}m): ₹${pack.price}, enabled=${pack.enabled}`);
+        return {
+          label: pack.name,
+          minutes: pack.duration,
+          price: pack.price,
+          category: "custom",
+        };
+      });
+    const allPacks = [...quickPacks, ...customPacks];
+    console.log("✅ Final Packs:", allPacks);
+
+    setPacks(allPacks);
+  }, [station, config]);
 
   if (!station) return null;
   const rolePerms = permissions[userRole];
@@ -209,7 +272,6 @@ useEffect(() => {
       onClose();
     }
   };
-
   const handleQuickSession = useCallback(
     (pack: Pack) => {
       if (
@@ -217,11 +279,16 @@ useEffect(() => {
         !station.isLocked &&
         rolePerms.canStartSession
       ) {
+        // Set the pack as selected
+        setSelectedPack(pack);
+
+        // Fill session data with pack values
         setSessionData({
-          customerName: `Quick ${pack.label}`,
+          customerName: `Quick ${pack.label}`, // or you can leave empty
           timeMinutes: pack.minutes,
           prepaidAmount: pack.price,
         });
+
         setShowSessionForm(true);
       }
     },
@@ -328,6 +395,17 @@ useEffect(() => {
               </p>
             </div>
           )}
+          {activeHappyHour && (
+            <div className="p-3 mb-3 bg-purple-50 border border-purple-200 rounded flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-purple-700">🎉 Happy Hour Active!</p>
+                <p className="text-xs text-purple-600">
+                  {activeHappyHour.startTime} - {activeHappyHour.endTime} | ₹{activeHappyHour.rate}/hr
+                </p>
+              </div>
+              <Badge className="bg-purple-600 text-white">Happy Hour</Badge>
+            </div>
+          )}
 
           {/* Packs Section */}
           {station.status === "AVAILABLE" && !station.isLocked && !showSessionForm && rolePerms.canStartSession && (
@@ -368,39 +446,60 @@ useEffect(() => {
           {showSessionForm && rolePerms.canStartSession && (
             <div className="space-y-2 p-3 border rounded bg-card dark:bg-card-dark mb-3">
               <h4 className="font-semibold">Start New Session</h4>
-              <Input
-                placeholder="Player name"
-                value={sessionData.customerName}
-                onChange={(e) => setSessionData({ ...sessionData, customerName: e.target.value })}
-              />
-              <select
-                value={sessionData.timeMinutes}
-                onChange={(e) => setSessionData({ ...sessionData, timeMinutes: parseInt(e.target.value) })}
-                className="w-full h-9 border rounded-md text-sm px-2 bg-background dark:bg-background-dark"
-              >
-                {allowedTimes.map((m) => (
-                  <option key={m} value={m}>
-                    {m < 60 ? `${m} min` : `${m / 60} hr`}
-                  </option>
-                ))}
-              </select>
-              <Input
-                type="number"
-                placeholder="Prepaid Amount"
-                value={sessionData.prepaidAmount}
-                onChange={(e) => setSessionData({ ...sessionData, prepaidAmount: parseFloat(e.target.value) })}
-              />
+
+              {/* If a pack is selected, show pack details only */}
+              {selectedPack ? (
+                <div className="p-3 mb-2 bg-blue-100 border border-blue-400 rounded flex flex-col gap-1">
+                  <div className="font-semibold text-lg text-blue-800">{selectedPack.label}</div>
+                  <div className="text-sm text-blue-700">Rates: ₹{selectedPack.price}</div>
+                  <div className="text-sm text-blue-700">
+                    Duration: {selectedPack.minutes < 60 ? `${selectedPack.minutes} min` : `${selectedPack.minutes / 60} hr`}
+                  </div>
+                </div>
+              ) : (
+                // Manual input form
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Player name"
+                    value={sessionData.customerName}
+                    onChange={(e) => setSessionData({ ...sessionData, customerName: e.target.value })}
+                  />
+
+                  <select
+                    value={sessionData.timeMinutes}
+                    onChange={(e) => setSessionData({ ...sessionData, timeMinutes: parseInt(e.target.value) })}
+                    className="w-full h-9 border rounded-md text-sm px-2 bg-background dark:bg-background-dark"
+                  >
+                    {allowedTimes.map((m) => (
+                      <option key={m} value={m}>
+                        {m < 60 ? `${m} min` : `${m / 60} hr`}
+                      </option>
+                    ))}
+                  </select>
+
+                  <Input
+                    type="number"
+                    placeholder="Prepaid Amount"
+                    value={sessionData.prepaidAmount}
+                    onChange={(e) => setSessionData({ ...sessionData, prepaidAmount: parseFloat(e.target.value) })}
+                  />
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <Button onClick={handleStartSession}>
                   <Zap className="w-4 h-4 mr-2" /> Launch
                 </Button>
-                <Button variant="secondary" onClick={() => setShowSessionForm(false)}>
+                <Button variant="secondary" onClick={() => {
+                  setShowSessionForm(false);
+                  setSelectedPack(null);
+                  setSessionData({ customerName: "", timeMinutes: 60, prepaidAmount: 0 });
+                }}>
                   Cancel
                 </Button>
               </div>
             </div>
           )}
-
           {/* Lock Form */}
           {showLockForm && rolePerms.canLock && (
             <div className="space-y-2 p-3 border rounded bg-card dark:bg-card-dark mb-3">
@@ -452,11 +551,6 @@ useEffect(() => {
               {/* Start Session / Lock / Edit (when available) */}
               {station.status === "AVAILABLE" && (
                 <>
-                  {rolePerms.canStartSession && (
-                    <Button onClick={() => setShowSessionForm(true)}>
-                      <Play className="w-4 h-4 mr-2" /> Start Session
-                    </Button>
-                  )}
                   {rolePerms.canLock && (
                     <Button variant="outline" onClick={() => setShowLockForm(true)}>
                       <Lock className="w-4 h-4 mr-2" /> Assign Lock

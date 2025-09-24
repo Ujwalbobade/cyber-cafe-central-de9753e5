@@ -58,6 +58,7 @@ interface StationPopupProps {
   onClose: () => void;
   onAction: (stationId: string, action: string, data?: any) => void;
   onDelete: () => void;
+userRole?: "admin" | "moderator" | "viewer";
 }
 
 // ---------- Helpers ----------
@@ -92,7 +93,7 @@ const StationPopup: React.FC<StationPopupProps> = ({
   isOpen,
   onClose,
   onAction,
-  onDelete,
+  onDelete
 }) => {
   const [allowedTimes, setAllowedTimes] = useState<number[]>([
     15, 30, 60, 120, 180,

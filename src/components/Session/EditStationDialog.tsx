@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Save, X, Edit } from "lucide-react";
-import { Station } from "@/components/Types/Stations";
+import { Station } from "@/components/Station/Types/Stations";
 
 
 

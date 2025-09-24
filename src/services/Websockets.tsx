@@ -66,6 +66,8 @@ export default class AdminWebSocketService {
 
   public onMessage: ((data: any) => void) | null = null;
   public onConnectionChange: ((state: ConnectionState) => void) | null = null;
+  public onError: ((error: any) => void) | null = null;
+  public onClose: (() => void) | null = null;
 
   public static getInstance(): AdminWebSocketService {
     if (!AdminWebSocketService.instance) {
@@ -74,7 +76,7 @@ export default class AdminWebSocketService {
     return AdminWebSocketService.instance;
   }
 
-  private constructor() {}
+  private constructor() { }
 
   async connect(): Promise<void> {
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
@@ -96,17 +98,33 @@ export default class AdminWebSocketService {
     };
 
     this.socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        this.onMessage?.(data);
-      } catch (error) {
-        console.error("Error parsing WS message", event.data, error);
+      let data: any;
+
+      // If already an object, use it directly; otherwise parse
+      if (typeof event.data === "string") {
+        try {
+          data = JSON.parse(event.data);
+        } catch (error) {
+          console.error("Error parsing WS message", event.data, error);
+          return;
+        }
+      } else {
+        data = event.data;
       }
+
+      this.onMessage?.(data);
+    };
+
+    this.socket.onerror = (error) => {
+      console.error("WebSocket error", error);
+      this.onConnectionChange?.("error");
+      this.onError?.(error); // trigger external handler
     };
 
     this.socket.onclose = async () => {
       this.socket = null;
       this.onConnectionChange?.("disconnected");
+      this.onClose?.(); // trigger external handler
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
         setTimeout(async () => {
           this.reconnectAttempts++;
@@ -114,12 +132,8 @@ export default class AdminWebSocketService {
         }, this.reconnectInterval);
       }
     };
-
-    this.socket.onerror = (error) => {
-      console.error("WebSocket error", error);
-      this.onConnectionChange?.("error");
-    };
   }
+
 
   disconnect(): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -144,7 +158,7 @@ export default class AdminWebSocketService {
     this.send({ type: "request_real_time_data" });
   }
 
-public isConnected(): boolean {
-  return this.socket != null && this.socket.readyState === WebSocket.OPEN;
-}
+  public isConnected(): boolean {
+    return this.socket != null && this.socket.readyState === WebSocket.OPEN;
+  }
 }

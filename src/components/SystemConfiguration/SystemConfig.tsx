@@ -32,7 +32,7 @@ export interface SystemConfiguration {
     rate: number;
     days: string[];
   }[];
-  customPacks: {
+  packs: {
     id?: string;
     name: string;
     duration: number;
@@ -47,7 +47,7 @@ const defaultConfig: SystemConfiguration = {
   hourlyRates: { PC: 100, PS5: 150, PS4: 120 },
   timeOptions: [10, 15, 30, 60, 120, 180],
   happyHours: [],
-  customPacks: [],
+  packs: [],
 };
 
 const SystemSettings: React.FC = () => {
@@ -55,6 +55,7 @@ const SystemSettings: React.FC = () => {
 
   const [config, setConfig] = useState<SystemConfiguration>(defaultConfig);
   const [cafeName, setCafeName] = useState(() => localStorage.getItem('cafe-name') || 'CYBER LOUNGE');
+  const userRole = localStorage.getItem("role") || "moderator";
   const [currentThemeColor, setCurrentThemeColor] = useState<{ r: number; g: number; b: number }>({
     r: 0,
     g: 122,
@@ -87,7 +88,7 @@ const SystemSettings: React.FC = () => {
           hourlyRates: data.rates || defaultConfig.hourlyRates,
           timeOptions: data.times || defaultConfig.timeOptions,
           happyHours: data.happyHours || [],
-          customPacks: data.packs?.map((p: any) => ({ ...p, enabled: p.enabled ?? true })) || [],
+          packs: data.packs?.map((p: any) => ({ ...p, enabled: p.enabled ?? true })) || [],
         });
         if (data.cafeName) setCafeName(data.cafeName);
         if (data.theme) {
@@ -111,7 +112,7 @@ const SystemSettings: React.FC = () => {
         rates: config.hourlyRates,
         times: config.timeOptions,
         happyHours: config.happyHours.map(hh => ({ ...hh })),
-        packs: config.customPacks.map(pack => ({
+        packs: config.packs.map(pack => ({
           name: pack.name,
           duration: pack.duration,
           price: pack.price,
@@ -188,7 +189,7 @@ const SystemSettings: React.FC = () => {
     setConfig(prev => ({ ...prev, happyHours: prev.happyHours.filter((_, i) => i !== index) }));
   };
 
-  // Custom Packs
+  // Add new pack
   const addCustomPack = () => {
     if (!newCustomPack.name.trim()) {
       toast.error("Pack name is required");
@@ -196,7 +197,7 @@ const SystemSettings: React.FC = () => {
     }
     setConfig(prev => ({
       ...prev,
-      customPacks: [...prev.customPacks, { ...newCustomPack, id: `pack-${Date.now()}` }],
+      packs: [...prev.packs, { ...newCustomPack, id: `pack-${Date.now()}` }],
     }));
     toast.success(`Custom Pack "${newCustomPack.name}" created`);
     setNewCustomPack({
@@ -209,13 +210,13 @@ const SystemSettings: React.FC = () => {
     });
   };
 
+  // Remove pack
   const removeCustomPack = (id: string) => {
     setConfig(prev => ({
       ...prev,
-      customPacks: prev.customPacks.filter(p => p.id !== id),
+      packs: prev.packs.filter(p => p.id !== id),
     }));
   };
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -324,26 +325,52 @@ const SystemSettings: React.FC = () => {
               </div>
             </Card>
           </TabsContent>
-
-          {/* Happy Hours Tab */}
           <TabsContent value="happy">
             <Card className="p-6 space-y-4">
-              {config.happyHours.map((hh, idx) => (
-                <div key={idx} className="flex justify-between items-center p-4 border border-border rounded-lg bg-muted/50">
-                  <div>
-                    <p>{hh.startTime} - {hh.endTime} | ₹{hh.rate}/hr</p>
-                    <p className="text-xs text-muted-foreground capitalize">{hh.days.join(', ')}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={() => removeHappyHour(idx)}
+              {/* Scrollable list */}
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {config.happyHours.map((hh, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center p-4 border border-border rounded-lg bg-muted/50"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
+                    <div>
+                      <p>
+                        {hh.startTime} - {hh.endTime} | ₹{hh.rate}/hr
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {hh.days.join(", ")}
+                      </p>
+                      <label className="flex items-center gap-2 mt-1 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={hh.enabled}
+                          onChange={(e) =>
+                            setConfig((prev) => {
+                              const newHH = [...prev.happyHours];
+                              newHH[idx] = { ...newHH[idx], enabled: e.target.checked };
+                              return { ...prev, happyHours: newHH };
+                            })
+                          }
+                        />
+                        Active
+                      </label>
+                    </div>
+                    {userRole === "admin" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => removeHappyHour(idx)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add new happy hour form */}
               <div className="border-t border-border pt-4 space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -351,7 +378,9 @@ const SystemSettings: React.FC = () => {
                     <Input
                       type="time"
                       value={newHappyHour.startTime}
-                      onChange={e => setNewHappyHour(prev => ({ ...prev, startTime: e.target.value }))}
+                      onChange={e =>
+                        setNewHappyHour(prev => ({ ...prev, startTime: e.target.value }))
+                      }
                     />
                   </div>
                   <div>
@@ -359,7 +388,9 @@ const SystemSettings: React.FC = () => {
                     <Input
                       type="time"
                       value={newHappyHour.endTime}
-                      onChange={e => setNewHappyHour(prev => ({ ...prev, endTime: e.target.value }))}
+                      onChange={e =>
+                        setNewHappyHour(prev => ({ ...prev, endTime: e.target.value }))
+                      }
                     />
                   </div>
                 </div>
@@ -369,7 +400,7 @@ const SystemSettings: React.FC = () => {
                   <Input
                     type="number"
                     value={newHappyHour.rate}
-                    onChange={(e) =>
+                    onChange={e =>
                       setNewHappyHour(prev => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))
                     }
                     placeholder="Rate per hour"
@@ -398,42 +429,62 @@ const SystemSettings: React.FC = () => {
                     ))}
                   </div>
                 </div>
-
+                    {userRole === "admin" && (
                 <Button onClick={addHappyHour} className="w-full mt-2">
                   <Plus className="w-4 h-4 mr-2" /> Add Happy Hour
-                </Button>
+                </Button>)}
               </div>
             </Card>
           </TabsContent>
+
           {/* Custom Packs Tab */}
           <TabsContent value="packs">
             <Card className="p-6 space-y-4">
-              {config.customPacks.map(pack => (
-                <div
-                  key={pack.id}
-                  className="flex justify-between items-center p-4 border border-border rounded-lg bg-muted/50"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {pack.name} — {pack.duration} mins @ ₹{pack.price}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {pack.description || 'No description'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Valid on: {pack.validStationTypes.join(', ')}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={() => removeCustomPack(pack.id!)}
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {config.packs.map((pack) => (
+                  <div
+                    key={pack.id}
+                    className="flex justify-between items-center p-4 border border-border rounded-lg bg-muted/50"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {pack.name} — {pack.duration} mins @ ₹{pack.price}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {pack.description || "No description"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Valid on: {pack.validStationTypes.join(", ")}
+                      </p>
+                      <label className="flex items-center gap-2 mt-1 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={pack.enabled}
+                          onChange={(e) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              packs: prev.packs.map((p) =>
+                                p.id === pack.id ? { ...p, enabled: e.target.checked } : p
+                              ),
+                            }))
+                          }
+                        />
+                        Active
+                      </label>
+                    </div>
+                    {userRole === "admin" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => removeCustomPack(pack.id!)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
 
               {/* Add New Pack Form */}
               <div className="border-t border-border pt-4 space-y-4">
@@ -511,9 +562,9 @@ const SystemSettings: React.FC = () => {
                   </div>
                 </div>
 
-                <Button onClick={addCustomPack} className="w-full">
+               {userRole === "admin" && ( <Button onClick={addCustomPack} className="w-full">
                   <Plus className="w-4 h-4 mr-2" /> Add New Pack
-                </Button>
+                </Button>)}
               </div>
             </Card>
           </TabsContent>

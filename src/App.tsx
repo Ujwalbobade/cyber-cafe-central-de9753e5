@@ -3,14 +3,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import LoginPage from "./components/LoginPage";
-import AdminDashboard from "./components/AdminDashboard";
+import LoginPage from "./components/Login/LoginPage";
+import AdminDashboard from "./components/AdminDashboard/Index";
 import AnalyticsHub from "./components/Analytics/AnalyticsHub";
 import SystemSettings from "./components/SystemConfiguration/SystemConfig";
+import UserManagement from "@/components/userInfo/UserManagement";
 import { useToken } from "./utils/TokenProvider";
-import { useEffect, useState } from "react";
-import UserManagement from "@/components/UserInfo/UserManagement";
 import { SystemConfigProvider } from "@/utils/SystemConfigContext";
+import { useEffect, useState } from "react";
 
 const queryClient = new QueryClient();
 
@@ -19,44 +19,46 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // ⏳ simulate initial check
+  // Simulate initial loading
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 800);
     return () => clearTimeout(timer);
   }, []);
 
-  // Load user from storage on mount
+  // Load user from sessionStorage on mount
   useEffect(() => {
-    const userData = localStorage.getItem("currentUser");
+    const userData = sessionStorage.getItem("currentUser");
     if (userData) {
       try {
         const user = JSON.parse(userData);
-        setCurrentUser(user);
+        setCurrentUser(user); 
       } catch (err) {
         console.error("Failed to parse currentUser:", err);
       }
     }
+    localStorage.setItem("role", currentUser?.role || "");
   }, []);
-  // Log current user and token whenever they change
-useEffect(() => {
-  console.log("✅ Current Token:", token);
-  console.log("👤 Logged-in User:", currentUser);
-}, [token, currentUser]);
 
-  // Called on login
+  // Log token and user for debugging
+  useEffect(() => {
+    console.log("✅ Current Token:", token);
+    console.log("👤 Logged-in User:", currentUser);
+  }, [token, currentUser]);
+
+  // Handle login
+  
   const handleLogin = (newToken: string, userInfo: any) => {
     setToken(newToken);
-
-    // Save user info
     const userWithLoginTime = { ...userInfo, loginTime: new Date().toISOString() };
-    localStorage.setItem("currentUser", JSON.stringify(userWithLoginTime));
+    sessionStorage.setItem("currentUser", JSON.stringify(userWithLoginTime));
     setCurrentUser(userWithLoginTime);
-  };
-
-  // Called on logout
+    console.log("User logged in App: ", userWithLoginTime);
+  }
+    
+  // Handle logout
   const handleLogout = () => {
     removeToken();
-    localStorage.removeItem("currentUser");
+    sessionStorage.removeItem("currentUser");
     setCurrentUser(null);
   };
 
@@ -78,58 +80,66 @@ useEffect(() => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-         <SystemConfigProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Login */}
-            <Route
-              path="/login"
-              element={
-                isAuthenticated ? (
-                  <Navigate to="/dashboard" />
-                ) : (
-                  <LoginPage onLogin={handleLogin} />
-                )
-              }
-            />
+        <SystemConfigProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Login */}
+              <Route
+                path="/login"
+                element={
+                  isAuthenticated ? (
+                    <Navigate to="/dashboard" />
+                  ) : (
+                    <LoginPage onLogin={handleLogin} />
+                  )
+                }
+              />
 
-            {/* Protected */}
-            <Route
-              path="/dashboard"
-              element={
-                isAuthenticated ? (
-                  <AdminDashboard onLogout={handleLogout} currentUser={currentUser} />
-                ) : (
-                  <Navigate to="/login" />
-                )
-              }
-            />
-            <Route
-              path="/analytics"
-              element={isAuthenticated ? <AnalyticsHub /> : <Navigate to="/login" />}
-            />
-            <Route
-              path="/settings"
-              element={isAuthenticated ? <SystemSettings /> : <Navigate to="/login" />}
-            />
-            <Route
-              path="/user-management"
-              element={
-                isAuthenticated ? (
-                  <UserManagement loggedInUser={currentUser} />
-                ) : (
-                  <Navigate to="/login" />
-                )
-              }
-            />
+              {/* Protected Routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  isAuthenticated ? (
+                    <AdminDashboard onLogout={handleLogout} currentUser={currentUser} />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  isAuthenticated ? <AnalyticsHub /> : <Navigate to="/login" />
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  isAuthenticated ? <SystemSettings /> : <Navigate to="/login" />
+                }
+              />
+              <Route
+                path="/user-management"
+                element={
+                  isAuthenticated ? (
+                    <UserManagement loggedInUser={currentUser} />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
+              />
 
-            {/* Redirect root */}
-            <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
-          </Routes>
-        </BrowserRouter>
+              {/* Redirect root */}
+              <Route
+                path="/"
+                element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />}
+              />
+            </Routes>
+          </BrowserRouter>
         </SystemConfigProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
 };
+
 export default App;
