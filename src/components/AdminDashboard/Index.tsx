@@ -14,6 +14,7 @@ import UserManagement from '../userInfo/UserManagement';
 import StationModal from '../Station/StationModal';
 import DeleteConfirmationDialog from '@/components/ui/delete-confirmation-dialog';
 import LogoutDialog from './components/LogoutDailog';
+import CreditsTab from '../Credits/Credits';
 
 // Import hooks
 import { useStationActions } from './hooks/useStationAction';
@@ -34,23 +35,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [systemConfig, setSystemConfig] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'stations' | 'userManagement'>('dashboard');
-  
+const [activeTab, setActiveTab] = useState<
+  'dashboard' | 'stations' | 'userManagement' | 'credits'
+>('dashboard');
+
   // UI state
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showAddStation, setShowAddStation] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [stationToDelete, setStationToDelete] = useState<Station | null>(null);
-  
+
   const { toast } = useToast();
 
   // Custom hooks
   const { connectionStatus } = useWebSocket(setStations);
-  const { 
-    handleAddStation, 
-    handleDeleteStation, 
+  const {
+    handleAddStation,
+    handleDeleteStation,
     handleStationAction,
-    showDeleteConfirmation 
+    showDeleteConfirmation
   } = useStationActions(stations, setStations, toast);
 
   // Load initial data
@@ -70,7 +73,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
           }
           return s;
         });
-        
+
         setStations(normalized);
         setSystemConfig(configData);
         setLoading(false);
@@ -101,7 +104,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       </div>
 
       {/* Mobile Navigation */}
-      <MobileNavigation 
+      <MobileNavigation
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         mobileNavOpen={mobileNavOpen}
@@ -121,7 +124,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
         {activeTab === 'dashboard' && (
-          <DashboardOverview 
+          <DashboardOverview
             stations={stations}
             setActiveTab={setActiveTab}
             setShowAddStation={setShowAddStation}
@@ -145,6 +148,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
             onDeleteStation={showDeleteConfirmation}
             setShowAddStation={setShowAddStation}
           />
+        )}
+        {activeTab === 'credits' && (
+          <CreditsTab stations={stations} setActiveTab={setActiveTab} />
         )}
       </main>
 

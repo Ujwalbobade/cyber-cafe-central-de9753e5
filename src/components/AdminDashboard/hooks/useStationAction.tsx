@@ -114,17 +114,31 @@ export const useStationActions = (
           break;
 
         case "end-session":
-          if (!data?.sessionId) {
-            throw new Error("Session ID required to end session");
-          }
-          await endSession(data.sessionId);
+          if (!data?.sessionId) throw new Error("Session ID required to end session");
+
+          const endedSession = await endSession(data.sessionId);
+
           setStations(prev =>
-            prev.map(station =>
-              String(station.currentSession?.id) === String(data.sessionId)
-                ? { ...station, status: "AVAILABLE", currentSession: undefined }
-                : station
-            )
+            prev.map(station => {
+              if (String(station.currentSession?.id) === String(data.sessionId)) {
+                const pastSession = {
+                  id: endedSession.id,
+                  customerName: endedSession.customerName,
+                  startTime: endedSession.startTime,
+                  endTime: endedSession.endTime,
+                };
+
+                return {
+                  ...station,
+                  status: "AVAILABLE",
+                  currentSession: undefined,
+                  pastSessions: [...(station.pastSessions || []), pastSession], // ✅ Add to pastSessions
+                };
+              }
+              return station;
+            })
           );
+
           toast({
             title: "Session Ended",
             description: `Session ${data.sessionId} has been ended.`,

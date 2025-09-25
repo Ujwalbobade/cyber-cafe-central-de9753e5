@@ -6,14 +6,22 @@ export interface Station {
   hourlyRate: number;
   specifications: string;
   ipAddress?: string;
-  macAddress?: string;   // <-- make optional
+  macAddress?: string;   
   isLocked: boolean;
   lockedFor?: string;
   handRaised?: boolean;
+
   currentSession?: {
     id: string;
     customerName: string;
     startTime: string;
     timeRemaining: number;
   };
+    pastSessions?: {
+    id: string;
+    customerName: string;
+    startTime: string;
+    endTime: string;
+  }[];
+
 }

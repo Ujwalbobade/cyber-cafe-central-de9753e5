@@ -159,7 +159,7 @@ const StationsManagement: React.FC<StationsManagementProps> = ({
                 onAction={onStationAction}
                 onDelete={() => onDeleteStation(station)}
                 updateStationStatus={updateStationStatus}
-                currentUserRole={currentUser.role as "admin" | "moderator"}
+                currentUserRole={(currentUser?.role as "admin" | "moderator") ?? "moderator"}
               />
             </div>
           ))}
@@ -171,7 +171,7 @@ const StationsManagement: React.FC<StationsManagementProps> = ({
             onStationClick={handleStationClick}
             onStationAction={onStationAction}
             updateStationStatus={updateStationStatus}
-            currentUserRole={currentUser.role as "admin" | "moderator"}
+            currentUserRole={(currentUser?.role as "admin" | "moderator") ?? "moderator"}
           />
 
           {selectedStation && (
@@ -181,7 +181,7 @@ const StationsManagement: React.FC<StationsManagementProps> = ({
               onClose={() => setShowSessionPopup(false)}
               onAction={onStationAction}
               onDelete={() => console.log("Delete clicked")}
-              userRole={currentUser.role as "admin" | "moderator" | "viewer"}
+              userRole={currentUser.role as "admin" | "moderator"}
             />
           )}
         </Card>

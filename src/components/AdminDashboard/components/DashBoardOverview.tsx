@@ -8,7 +8,7 @@ import { Station } from "@/components/Station/Types/Stations";
 
 interface DashboardOverviewProps {
   stations: Station[];
-  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement') => void;
+  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement' | 'credits') => void;
   setShowAddStation: (show: boolean) => void;
 }
 
@@ -29,6 +29,31 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       .filter(s => s.currentSession)
       .reduce((sum, station) => sum + (station.hourlyRate * 0.5), 0)
   };
+
+  const dailyCredits: { [key: string]: number } = {};
+  stations.flatMap(s =>
+    (s.pastSessions || []).map(session => {
+      const durationHours =
+        (new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) /
+        (1000 * 60 * 60);
+      const amount = durationHours * s.hourlyRate;
+      const date = new Date(session.endTime).toLocaleDateString();
+      dailyCredits[date] = (dailyCredits[date] || 0) + amount;
+      return amount;
+    })
+  );
+
+  const today = new Date().toLocaleDateString();
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString();
+
+  const todayRevenue = dailyCredits[today] || 0;
+  const yesterdayRevenue = dailyCredits[yesterday] || 0;
+
+  let changeText = "N/A";
+  if (yesterdayRevenue > 0) {
+    const changePercent = ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100;
+    changeText = `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}% vs yesterday`;
+  }
 
   return (
     <div className="space-y-8 animate-slide-in-gaming">
@@ -88,14 +113,18 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             change={`${((stats.occupiedStations / stats.totalStations) * 100).toFixed(0)}% utilization`}
           />
         </div>
-
-        <StatsCard
-          title="CREDITS EARNED"
-          value={`₹${stats.totalRevenue.toFixed(0)}`}
-          icon={<DollarSign className="w-8 h-8" />}
-          gradient="bg-gradient-gaming"
-          change="+15% vs yesterday"
-        />
+        <div
+          onClick={() => { setActiveTab("credits"); }}
+          className="cursor-pointer"
+        >
+          <StatsCard
+            title="CREDITS EARNED"
+            value={`₹${stats.totalRevenue.toFixed(0)}`}
+            icon={<DollarSign className="w-8 h-8" />}
+            gradient="bg-gradient-gaming"
+            change={changeText}
+          />
+        </div>
       </div>
 
       {/* Quick Actions */}

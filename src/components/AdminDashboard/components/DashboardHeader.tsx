@@ -17,8 +17,8 @@ interface DashboardHeaderProps {
   systemConfig: any;
   currentUser: any;
   connectionStatus: 'connected' | 'disconnected' | 'error';
-  activeTab: 'dashboard' | 'stations' | 'userManagement';
-  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement') => void;
+  activeTab: 'dashboard' | 'stations' | 'userManagement'|'credits';
+  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement'|'credits') => void;
   onLogout: () => void;
 }
 

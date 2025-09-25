@@ -17,7 +17,6 @@ import {
 import StatsCard from '../StatsCard';
 import { getAnalytics, getRealTimeAnalytics ,getTotalStations} from '@/services/apis/api';
 
-// Types
 export type ConnectionState = "connected" | "disconnected" | "error";
 
 interface AnalyticsData {
@@ -146,7 +145,7 @@ const AnalyticsHub: React.FC = () => {
       }
     };
   }, [timeRange, realTimeUpdates]);
-  // Fetch stations count once
+
 useEffect(() => {
   const fetchStations = async () => {
     try {
