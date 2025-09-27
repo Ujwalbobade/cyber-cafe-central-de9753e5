@@ -11,6 +11,9 @@ import UserManagement from "@/components/userInfo/UserManagement";
 import { useToken } from "./utils/TokenProvider";
 import { SystemConfigProvider } from "@/utils/SystemConfigContext";
 import { useEffect, useState } from "react";
+import ResetPasswordPage from "@/components/Login/Passwordreset/ResetPasswordPage";
+
+
 
 const queryClient = new QueryClient();
 
@@ -31,7 +34,7 @@ const App = () => {
     if (userData) {
       try {
         const user = JSON.parse(userData);
-        setCurrentUser(user); 
+        setCurrentUser(user);
       } catch (err) {
         console.error("Failed to parse currentUser:", err);
       }
@@ -43,10 +46,11 @@ const App = () => {
   useEffect(() => {
     console.log("✅ Current Token:", token);
     console.log("👤 Logged-in User:", currentUser);
+    console.log("user from localstroge", localStorage.getItem("currentUser"));
   }, [token, currentUser]);
 
   // Handle login
-  
+
   const handleLogin = (newToken: string, userInfo: any) => {
     setToken(newToken);
     const userWithLoginTime = { ...userInfo, loginTime: new Date().toISOString() };
@@ -54,7 +58,7 @@ const App = () => {
     setCurrentUser(userWithLoginTime);
     console.log("User logged in App: ", userWithLoginTime);
   }
-    
+
   // Handle logout
   const handleLogout = () => {
     removeToken();
@@ -71,6 +75,13 @@ const App = () => {
             INITIALIZING NEURAL NETWORK...
           </p>
         </div>
+      </div>
+    );
+  }
+  if (loading || (isAuthenticated && !currentUser)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading user data...</p>
       </div>
     );
   }
@@ -106,6 +117,8 @@ const App = () => {
                   )
                 }
               />
+              {/* Reset Password Route */}
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
                 path="/analytics"
                 element={
@@ -115,7 +128,11 @@ const App = () => {
               <Route
                 path="/settings"
                 element={
-                  isAuthenticated ? <SystemSettings /> : <Navigate to="/login" />
+                  isAuthenticated ? (
+                    <SystemSettings currentUser={currentUser} />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
                 }
               />
               <Route

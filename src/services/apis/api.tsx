@@ -80,7 +80,23 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
 
   return response.json();
 };
+//----------------- GENERIC FETCH WITHOUT AUTH -----------------
+export async function apiFetchNoAuth(endpoint: string, options: RequestInit) {
+  const res = await fetch(`http://localhost:8087/api${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    },
+  });
 
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Request failed');
+  }
+
+  return res.json();
+}
 // ----------------- AUTH -----------------
 export const login = async (username: string, password: string) => {
   const data = await apiFetch("/auth/login", {
@@ -99,7 +115,7 @@ export const login = async (username: string, password: string) => {
 };
 
 export const getCurrentUser = () => apiFetch("/auth/me");
-
+/*
 export const register = (user: {
   username: string;
   email: string;
@@ -107,7 +123,38 @@ export const register = (user: {
   role: string;
   fullName: string;
   phoneNumber: string;
+}) => apiFetch("/auth/register", { method: "POST", body: JSON.stringify(user) });*/
+
+export const register = (user: {
+    username: string;
+  email: string;
+  password: string;
+  role: string;
+  fullName: string;
+  phoneNumber: string;
 }) => apiFetch("/auth/register", { method: "POST", body: JSON.stringify(user) });
+
+
+
+// ----------------- AUTH - FORGOT PASSWORD -----------------
+export const forgotPassword = (email: string) =>
+  apiFetch("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+
+export const resetPassword = (token: string, newPassword: string) =>
+  apiFetch("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+  // ----------------- AUTH - FORGOT USERNAME -----------------
+export const forgotUsername = (email: string) =>
+  apiFetch("/auth/forgot-username", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 
 // ----------------- STATIONS -----------------
 export const getStations = () => apiFetch("/auth/stations");
@@ -133,6 +180,15 @@ export const getRealTimeAnalytics = () => apiFetch("/auth/analytics/real-time");
 
 // ----------------- SYSTEM CONFIG -----------------
 export const getSystemConfig = () => apiFetch("/auth/system-config/latest");
+/*
+export async function getSystemConfig() {
+  const token = localStorage.getItem("adminToken");
+  const res = await fetch('http://localhost:8087/api/auth/system-config/latest', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('You are not logged in or your session expired.');
+  return res.json();
+}*/
 
 export const saveSystemConfig = (configData: any) =>  apiFetch("/auth/system-config", {method: "POST", body: JSON.stringify(configData)});
 

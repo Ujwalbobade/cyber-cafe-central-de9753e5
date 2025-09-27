@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Eye, EyeOff, Zap, UserPlus } from 'lucide-react';
+import { Shield, Eye, EyeOff, Zap, UserPlus, Mail, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import gamingBg from '@/assets/gaming-bg.jpg';
-import { login, register } from "@/services/apis/api";
+import { login, register, forgotPassword, forgotUsername } from "@/services/apis/api";
 import AdminWebSocketService, { ConnectionState } from "@/services/Websockets";
 
 interface LoginPageProps {
@@ -14,15 +14,15 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgotPassword' | 'forgotUsername'>('login');
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
     confirmPassword: '',
     email: '',
-    role: 'user',
-    fullName: '',     
-    phoneNumber: '',
+    role: 'admin',
+    phonenumber: ''
+
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +31,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   useEffect(() => {
     const ws = AdminWebSocketService.getInstance();
-    ws.onConnectionChange = (state) => setConnection(state);
+    ws.onConnectionChange = state => setConnection(state);
     ws.connect();
     return () => {
       ws.onConnectionChange = null;
@@ -39,90 +39,71 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
-  if (e) e.preventDefault();
-  setLoading(true);
-
-  try {
-    if (mode === "login") {
-      const data = await login(credentials.username, credentials.password);
-      const token = data?.token;
-      console.log("Login response data:", data);
-      console.log("Extracted token:", token);
-
-      if (token) {
-        const userInfo = {
-          username: data.user?.username || credentials.username,
-          email: data.user?.email || "",
-          role: data.role || "user",
-        };
-
-        // Save to localStorage
-        localStorage.setItem("adminToken", token);
-        localStorage.setItem("currentUser", JSON.stringify(userInfo));
-        console.log("User info saved:", userInfo);
-
-        // ✅ Pass token + user back up to App
-        onLogin(token, userInfo);
-
-        toast({
-          title: "Welcome back!",
-          description: "Successfully logged into Gaming Cafe Admin",
-        });
+    if (e) e.preventDefault();
+    setLoading(true);
+    try {
+      if (mode === 'login') {
+        const data = await login(credentials.username, credentials.password);
+        const token = data?.token;
+        if (token) {
+          const userInfo = {
+            username: data.user?.username || credentials.username,
+            email: data.user?.email || '',
+            role: data.role || 'user',
+          };
+          localStorage.setItem("adminToken", token);
+          localStorage.setItem("currentUser", JSON.stringify(userInfo));
+          console.log("User Info on Login:", userInfo);
+          onLogin(token, userInfo);
+          toast({ title: "Welcome back!", description: "Logged in successfully." });
+        }
+      } else if (mode === 'register') {
+        if (credentials.password !== credentials.confirmPassword) {
+          toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+        } else {
+          await register({
+            username: credentials.username,
+            email: credentials.email,
+            password: credentials.password,
+            role: credentials.role, 
+            fullName: credentials.username,
+            phoneNumber: credentials.phonenumber
+          });
+          toast({ title: "Registered", description: "Account created successfully." });
+          setMode('login');
+          setCredentials({ username: '', password: '', confirmPassword: '', email: '', role: 'admin' , phonenumber: ''});
+        }
+      } else if (mode === 'forgotPassword') {
+        if (!credentials.email) {
+          toast({ title: "Error", description: "Please enter your email", variant: "destructive" });
+        } else {
+          await forgotPassword(credentials.email);
+          toast({ title: "Check Email", description: "Password reset instructions sent." });
+          setMode('login');
+        }
+      } else if (mode === 'forgotUsername') {
+        if (!credentials.email) {
+          toast({ title: "Error", description: "Please enter your email", variant: "destructive" });
+        } else {
+          await forgotUsername(credentials.email);
+          toast({ title: "Check Email", description: "Username recovery instructions sent." });
+          setMode('login');
+        }
       }
-    } else {
-      if (credentials.password !== credentials.confirmPassword) {
-        toast({
-          title: "Password Mismatch",
-          description: "Confirm password does not match.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      await register({
-        username: credentials.username,
-        email: credentials.email,
-        password: credentials.password,
-        role: credentials.role,
-        fullName: credentials.fullName,
-        phoneNumber: credentials.phoneNumber,
-      });
-
-      toast({
-        title: "Account Created",
-        description: `User "${credentials.username}" registered successfully.`,
-      });
-
-      // Reset to login mode
-      setMode("login");
-      setCredentials({
-        username: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        role: "user",
-        fullName: "",
-        phoneNumber: "",
-      });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Server error", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    toast({
-      title: "Error",
-      description: error?.message || "Server error",
-      variant: "destructive",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
         backgroundImage: `url(${gamingBg})`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center'
+        backgroundPosition: 'center',
       }}
     >
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
@@ -146,172 +127,188 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               GAMING CAFE
             </h1>
             <h2 className="text-xl font-gaming font-semibold text-primary mb-2">
-              {mode === 'login' ? 'ADMIN CONTROL' : 'REGISTER ACCOUNT'}
+              {mode === 'login'
+                ? 'ADMIN LOGIN'
+                : mode === 'register'
+                  ? 'REGISTER ACCOUNT'
+                  : mode === 'forgotPassword'
+                    ? 'FORGOT PASSWORD'
+                    : 'FORGOT USERNAME'}
             </h2>
             <p className="text-muted-foreground">
               {mode === 'login'
-                ? 'Access the neural interface to manage your gaming empire'
-                : 'Create a new account to join the gaming network'}
+                ? 'Enter username or email and password'
+                : mode === 'register'
+                  ? 'Fill details to register'
+                  : 'Enter your email to recover'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
+
+            {/* Username / Email / Identifier */}
+            <div className="space-y-2">
+              <Label htmlFor="usernameOrEmail" className="font-gaming text-sm tracking-wide">
+                {mode === 'register' ? 'Username' : (mode === 'forgotUsername' || mode === 'forgotPassword') ? 'Email' : 'Username or Email'}
+              </Label>
+              <Input
+                id="usernameOrEmail"
+                type={mode === 'forgotUsername' || mode === 'forgotPassword' ? 'email' : 'text'}
+                required
+                value={mode === 'forgotUsername' || mode === 'forgotPassword' ? credentials.email : credentials.username}
+                onChange={e =>
+                  mode === 'forgotUsername' || mode === 'forgotPassword'
+                    ? setCredentials({ ...credentials, email: e.target.value })
+                    : setCredentials({ ...credentials, username: e.target.value })
+                }
+                className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming"
+                placeholder={
+                  mode === 'forgotUsername'
+                    ? 'Enter your registered email'
+                    : mode === 'forgotPassword'
+                      ? 'Enter your registered email'
+                      : mode === 'register'
+                        ? 'Choose a username'
+                        : 'Username or email'
+                }
+              />
+            </div>
+
+            {mode === 'register' && (
               <div className="space-y-2">
-                <Label htmlFor="username" className="font-gaming text-sm tracking-wide">
-                  USERNAME
-                </Label>
+                <Label htmlFor="email" className="font-gaming text-sm tracking-wide">Email</Label>
                 <Input
-                  id="username"
-                  type="text"
+                  id="email"
+                  type="email"
                   required
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                  value={credentials.email}
+                  onChange={e => setCredentials({ ...credentials, email: e.target.value })}
                   className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming"
-                  placeholder="Enter username"
+                  placeholder="Enter your email"
                 />
               </div>
-              {mode === 'register' && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="font-gaming text-sm tracking-wide">
-                    FULL NAME
-                  </Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    required
-                    value={credentials.fullName}
-                    onChange={(e) => setCredentials({ ...credentials, fullName: e.target.value })}
-                    className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming"
-                    placeholder="John Doe"
-                  />
-                </div>
-              )}
+            )}
 
-              {mode === 'register' && (
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber" className="font-gaming text-sm tracking-wide">
-                    PHONE NUMBER
-                  </Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    required
-                    value={credentials.phoneNumber}
-                    onChange={(e) => setCredentials({ ...credentials, phoneNumber: e.target.value })}
-                    className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming"
-                    placeholder="9876543210"
-                  />
-                </div>
-              )}
-
-              {mode === 'register' && (
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="font-gaming text-sm tracking-wide">
-                    EMAIL
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    required
-                    value={credentials.email}
-                    onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                    className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming"
-                    placeholder="Enter your email"
-                  />
-                </div>
-              )}
-
+            {(mode === 'login' || mode === 'register') && (
               <div className="space-y-2">
-                <Label htmlFor="password" className="font-gaming text-sm tracking-wide">
-                  PASSWORD
-                </Label>
+                <Label htmlFor="password" className="font-gaming text-sm tracking-wide">Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={credentials.password}
-                    onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                    onChange={e => setCredentials({ ...credentials, password: e.target.value })}
                     className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming pr-12"
                     placeholder="Enter password"
                   />
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-primary/20"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground/50"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
               </div>
+            )}
 
-              {mode === 'register' && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="font-gaming text-sm tracking-wide">
-                    CONFIRM PASSWORD
-                  </Label>
-                  <Input
-                    id="confirmPassword"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={credentials.confirmPassword}
-                    onChange={(e) => setCredentials({ ...credentials, confirmPassword: e.target.value })}
-                    className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming pr-12"
-                    placeholder="Re-enter password"
-                  />
-                </div>
-              )}
+            {mode === 'register' && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="font-gaming text-sm tracking-wide">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={credentials.confirmPassword}
+                  onChange={e => setCredentials({ ...credentials, confirmPassword: e.target.value })}
+                  className="bg-input/50 border-primary/30 focus:border-primary h-12 font-gaming pr-12"
+                  placeholder="Re-enter password"
+                />
+              </div>
+            )}
+            {mode === 'register' && (
+              <div className="space-y-2">
+                <Label htmlFor="role" className="font-gaming text-sm tracking-wide">Role</Label>
+                <select
+                  id="role"
+                  value={credentials.role}
+                  onChange={e => setCredentials({ ...credentials, role: e.target.value })}
+                  className="bg-input/50 border-primary/30 focus:border-primary h-12 w-full font-gaming px-3"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="user">User</option>
+                  <option value="moderator">Moderator</option>
+                </select>
+              </div>
+            )}
 
-              {mode === 'register' && (
-                <div className="space-y-2">
-                  <Label htmlFor="role" className="font-gaming text-sm tracking-wide">
-                    ROLE
-                  </Label>
-                  <select
-                    id="role"
-                    value={credentials.role}
-                    onChange={(e) => setCredentials({ ...credentials, role: e.target.value })}
-                    className="bg-input/50 border-primary/30 focus:border-primary h-12 w-full font-gaming px-3 rounded"
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="moderator">Moderator</option>
-                  </select>
-                </div>
-              )}
-            </div>
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 btn-gaming font-gaming font-semibold text-lg tracking-wider relative overflow-hidden flex items-center justify-center"
+              className="w-full h-12 btn-gaming font-gaming font-semibold text-lg"
             >
-              {loading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                  <span>{mode === 'login' ? 'INITIALIZING...' : 'CREATING...'}</span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  {mode === 'login' ? <Zap className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                  <span>{mode === 'login' ? 'CONNECT TO SYSTEM' : 'REGISTER ACCOUNT'}</span>
-                </div>
-              )}
+              {loading
+                ? (mode === 'login'
+                  ? 'Signing In...'
+                  : mode === 'register'
+                    ? 'Registering...'
+                    : mode === 'forgotPassword'
+                      ? 'Sending...'
+                      : 'Sending...'
+                )
+                : (mode === 'login'
+                  ? 'LOGIN'
+                  : mode === 'register'
+                    ? 'REGISTER'
+                    : mode === 'forgotPassword'
+                      ? 'RESET PASSWORD'
+                      : 'RECOVER USERNAME'
+                )
+              }
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <Button
-              type="button"
-              variant="link"
-              className="text-sm text-primary font-gaming underline"
-              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-            >
-              {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Login'}
-            </Button>
+            {mode !== 'register' && (
+              <Button
+                type="button"
+                variant="link"
+                className="text-sm text-primary font-gaming underline"
+                onClick={() => setMode('register')}
+              >
+                Don’t have an account? Register
+              </Button>
+            )}
+            {mode !== 'login' && (
+              <Button
+                type="button"
+                variant="link"
+                className="ml-4 text-sm text-primary font-gaming underline"
+                onClick={() => setMode('login')}
+              >
+                Back to Login
+              </Button>
+            )}
           </div>
+          {mode === 'login' && (
+            <div className="flex justify-between text-sm mb-4">
+              <button
+                type="button"
+                className="text-primary underline font-gaming"
+                onClick={() => setMode('forgotPassword')}
+              >
+                Forgot Password?
+              </button>
+              <button
+                type="button"
+                className="text-primary underline font-gaming"
+                onClick={() => setMode('forgotUsername')}
+              >
+                Forgot Username?
+              </button>
+            </div>
+          )}
         </div>
       </Card>
     </div>

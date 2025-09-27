@@ -50,12 +50,22 @@ const defaultConfig: SystemConfiguration = {
   packs: [],
 };
 
-const SystemSettings: React.FC = () => {
+interface SystemSettingsProps {
+  currentUser: { role: string; username?: string }; // adjust type as needed
+}
+
+
+const SystemSettings: React.FC<SystemSettingsProps> = ({ currentUser })  => {
   const navigate = useNavigate();
 
+  console.log("Current User in SystemSettings:", currentUser);
   const [config, setConfig] = useState<SystemConfiguration>(defaultConfig);
   const [cafeName, setCafeName] = useState(() => localStorage.getItem('cafe-name') || 'CYBER LOUNGE');
-  const userRole = localStorage.getItem("role") || "moderator";
+  const storedUser =currentUser
+const storedRole = currentUser?.role;
+const userRole = storedRole || localStorage.getItem("role") || "moderator";
+
+console.log("User Role:", userRole);
   const [currentThemeColor, setCurrentThemeColor] = useState<{ r: number; g: number; b: number }>({
     r: 0,
     g: 122,
@@ -166,7 +176,6 @@ const SystemSettings: React.FC = () => {
   const removeTimeOption = (minutes: number) => {
     setConfig(prev => ({ ...prev, timeOptions: prev.timeOptions.filter(t => t !== minutes) }));
   };
-
   // Happy Hours
   const addHappyHour = () => {
     if (!newHappyHour.startTime || !newHappyHour.endTime || !newHappyHour.rate) {
@@ -429,10 +438,15 @@ const SystemSettings: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                    {userRole === "admin" && (
-                <Button onClick={addHappyHour} className="w-full mt-2">
-                  <Plus className="w-4 h-4 mr-2" /> Add Happy Hour
-                </Button>)}
+                  {/* Add new happy hour form */}
+{userRole === "admin" && (
+  <div className="border-t border-border pt-4 space-y-2">
+    {/* form inputs for start/end time, rate, days */}
+    <Button onClick={addHappyHour} className="w-full mt-2">
+      <Plus className="w-4 h-4 mr-2" /> Add Happy Hour
+    </Button>
+  </div>
+)}
               </div>
             </Card>
           </TabsContent>
