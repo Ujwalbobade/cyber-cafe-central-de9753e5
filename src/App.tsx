@@ -13,14 +13,26 @@ import { SystemConfigProvider } from "@/utils/SystemConfigContext";
 import { useEffect, useState } from "react";
 import ResetPasswordPage from "@/components/Login/Passwordreset/ResetPasswordPage";
 
-
-
 const queryClient = new QueryClient();
 
 const App = () => {
   const { token, isAuthenticated, setToken, removeToken } = useToken();
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // ✅ Initialize currentUser synchronously from sessionStorage
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    const userData = sessionStorage.getItem("currentUser");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        localStorage.setItem("role", user.role || "");
+        return user;
+      } catch (err) {
+        console.error("Failed to parse currentUser:", err);
+      }
+    }
+    return null;
+  });
 
   // Simulate initial loading
   useEffect(() => {
@@ -28,42 +40,28 @@ const App = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Load user from sessionStorage on mount
-  useEffect(() => {
-    const userData = sessionStorage.getItem("currentUser");
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        setCurrentUser(user);
-      } catch (err) {
-        console.error("Failed to parse currentUser:", err);
-      }
-    }
-    localStorage.setItem("role", currentUser?.role || "");
-  }, []);
-
   // Log token and user for debugging
   useEffect(() => {
     console.log("✅ Current Token:", token);
     console.log("👤 Logged-in User:", currentUser);
-    console.log("user from localstroge", localStorage.getItem("currentUser"));
   }, [token, currentUser]);
 
   // Handle login
-
   const handleLogin = (newToken: string, userInfo: any) => {
     setToken(newToken);
     const userWithLoginTime = { ...userInfo, loginTime: new Date().toISOString() };
     sessionStorage.setItem("currentUser", JSON.stringify(userWithLoginTime));
     setCurrentUser(userWithLoginTime);
+    localStorage.setItem("role", userWithLoginTime.role || "");
     console.log("User logged in App: ", userWithLoginTime);
-  }
+  };
 
   // Handle logout
   const handleLogout = () => {
     removeToken();
     sessionStorage.removeItem("currentUser");
     setCurrentUser(null);
+    localStorage.removeItem("role");
   };
 
   if (loading) {
@@ -78,13 +76,15 @@ const App = () => {
       </div>
     );
   }
-  if (loading || (isAuthenticated && !currentUser)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading user data...</p>
-      </div>
-    );
-  }
+
+  // ❌ No need for this check anymore because currentUser is initialized
+  // if (isAuthenticated && !currentUser) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <p>Loading user data...</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -117,14 +117,16 @@ const App = () => {
                   )
                 }
               />
-              {/* Reset Password Route */}
+
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+
               <Route
                 path="/analytics"
                 element={
                   isAuthenticated ? <AnalyticsHub /> : <Navigate to="/login" />
                 }
               />
+
               <Route
                 path="/settings"
                 element={
@@ -135,6 +137,7 @@ const App = () => {
                   )
                 }
               />
+
               <Route
                 path="/user-management"
                 element={

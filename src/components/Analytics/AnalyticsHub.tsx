@@ -39,6 +39,8 @@ const AnalyticsHub: React.FC = () => {
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [totalStations, setTotalStations] = useState(0);
+  const [stationStatuses, setStationStatuses] = useState<Record<string, any>>({});
+const [systemStatus, setSystemStatus] = useState<{ status: string; message: string; timestamp?: number } | null>(null);
   const navigate = useNavigate();
 
   const wsRef = React.useRef<WebSocket | null>(null);
@@ -109,19 +111,46 @@ const AnalyticsHub: React.FC = () => {
           }, 30000);
         };
 
-        ws.onmessage = (event) => {
-          const msg = JSON.parse(event.data);
-          
-          switch (msg.type) {
-            case "analytics_update":
-              if (isMounted) {
-                setAnalyticsData(msg.data);
-              }
-              break;
-            default:
-              console.log("Unhandled analytics WS message:", msg);
-          }
-        };
+      ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+
+  switch (msg.type) {
+    // ✅ Analytics data updates
+    case "analytics_update":
+    case "analytics_response":
+    case "analytics_initial":
+      if (isMounted) {
+        setAnalyticsData(msg.data);
+      }
+      break;
+
+    // ✅ Real-time station updates from backend
+    case "station_update":
+      if (isMounted) {
+        console.log("🖥️ Station update:", msg.data);
+        setStationStatuses((prev) => ({
+          ...prev,
+          [msg.data.stationId]: {
+            ...prev[msg.data.stationId],
+            ...msg.data,
+            lastUpdated: new Date().toISOString(),
+          },
+        }));
+      }
+      break;
+
+    // ✅ System-wide status (health/heartbeat)
+    case "system_status":
+      if (isMounted) {
+        console.log("🟢 System status:", msg.data);
+        setSystemStatus(msg.data);
+      }
+      break;
+
+    default:
+      console.warn("Unhandled analytics WS message:", msg);
+  }
+};
 
         ws.onclose = () => {
           console.log("❌ Analytics WebSocket disconnected");
