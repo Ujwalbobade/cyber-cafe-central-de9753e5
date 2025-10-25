@@ -6,27 +6,51 @@ const StationList: React.FC = () => {
   const [stations, setStations] = useState<Station[]>([]);
   const wsService = AdminWebSocketService.getInstance();
 
+
   useEffect(() => {
     wsService.connect();
 
-    wsService.onMessage = (data: any) => {
-      if (data.type === "station_status") {
-        setStations((prev) =>
-          prev.map((s) => (s.id === data.stationId ? { ...s, status: data.status } : s))
-        );
-      } else if (data.type === "session_update") {
-        setStations((prev) =>
-          prev.map((s) => (s.id === data.stationId ? { ...s, currentSession: data.session } : s))
-        );
-      } else {
-        console.log("Unhandled WS event:", data);
+    wsService.onMessage = (data: unknown) => {
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "type" in data
+      ) {
+        const d = data as Record<string, unknown>;
+        if (d.type === "station_status" && typeof d.stationId === "string" && typeof d.status === "string") {
+          setStations((prev) =>
+            prev.map((s) => (s.id === d.stationId ? { ...s, status: d.status as Station["status"] } : s))
+          );
+        } else if (
+          d.type === "session_update" &&
+          typeof d.stationId === "string" &&
+          typeof d.session === "object" &&
+          d.session !== null &&
+          "id" in d.session &&
+          "customerName" in d.session &&
+          "startTime" in d.session &&
+          "timeRemaining" in d.session
+        ) {
+          setStations((prev) =>
+            prev.map((s) =>
+              s.id === d.stationId
+                ? {
+                    ...s,
+                    currentSession: d.session as Station["currentSession"],
+                  }
+                : s
+            )
+          );
+        } else {
+          console.log("Unhandled WS event:", data);
+        }
       }
     };
 
     return () => wsService.disconnect();
-  }, []);
+  }, [wsService]);
 
-  const handleAction = async (stationId: string, action: string, data?: any) => {
+  const handleAction = async (stationId: string, action: string, data?: Record<string, unknown>) => {
     console.log(`Action: ${action}`, { stationId, data });
     wsService.send({ stationId, action, ...data });
   };

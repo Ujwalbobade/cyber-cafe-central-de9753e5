@@ -8,10 +8,19 @@ import StationTableView from '@/components/Station/views/StationTableView';
 import SessionPopup from "@/components/Station/StationPopup";
 import { Station } from "@/components/Station/Types/Stations";
 
+interface User {
+  id?: string;
+  username: string;
+  email: string;
+  role: string;
+  loginTime?: string;
+  [key: string]: unknown;
+}
+
 interface StationsManagementProps {
   stations: Station[];
-  currentUser: any;
-  onStationAction: (stationId: string, action: string, data?: any) => void;
+  currentUser: User | null;
+  onStationAction: (stationId: string, action: string, data?: Record<string, unknown>) => void;
   onDeleteStation: (station: Station) => void;
   setShowAddStation: (show: boolean) => void;
 }
@@ -159,7 +168,7 @@ const StationsManagement: React.FC<StationsManagementProps> = ({
                 onAction={onStationAction}
                 onDelete={() => onDeleteStation(station)}
                 updateStationStatus={updateStationStatus}
-                currentUserRole={(currentUser?.role as "admin" | "moderator") ?? "moderator"}
+                currentUserRole={currentUser && currentUser.role ? (currentUser.role as "admin" | "moderator") : "moderator"}
               />
             </div>
           ))}
@@ -171,7 +180,7 @@ const StationsManagement: React.FC<StationsManagementProps> = ({
             onStationClick={handleStationClick}
             onStationAction={onStationAction}
             updateStationStatus={updateStationStatus}
-            currentUserRole={(currentUser?.role as "admin" | "moderator") ?? "moderator"}
+            currentUserRole={currentUser && currentUser.role ? (currentUser.role as "admin" | "moderator") : "moderator"}
           />
 
           {selectedStation && (
@@ -181,7 +190,7 @@ const StationsManagement: React.FC<StationsManagementProps> = ({
               onClose={() => setShowSessionPopup(false)}
               onAction={onStationAction}
               onDelete={() => console.log("Delete clicked")}
-              userRole={currentUser.role as "admin" | "moderator"}
+              userRole={currentUser && currentUser.role ? (currentUser.role as "admin" | "moderator") : "moderator"}
             />
           )}
         </Card>
@@ -193,7 +202,7 @@ const StationsManagement: React.FC<StationsManagementProps> = ({
             onStationAction={onStationAction}
             onDelete={onDeleteStation}
             updateStationStatus={updateStationStatus}
-            currentUserRole={currentUser.role as "admin" | "moderator"}
+            currentUserRole={currentUser && currentUser.role ? (currentUser.role as "admin" | "moderator") : "moderator"}
           />
         </Card>
       )}

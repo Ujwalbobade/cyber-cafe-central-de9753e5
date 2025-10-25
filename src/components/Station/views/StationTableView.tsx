@@ -21,13 +21,13 @@ import {
 } from "@/components/ui/table"
 import AdminWebSocketService from "../../../services/Websockets"
 import SessionPopup from "../../Session/SessionPopup"
-import { Hand } from "lucide-react" 
+import { Hand } from "lucide-react"
 
 interface Station {
   id: string
   name: string
   type: "PC" | "PS5" | "PS4"
-  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE"| "OFFLINE"
+  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE" | "OFFLINE"
   hourlyRate: number
   specifications: string
   isLocked: boolean
@@ -44,10 +44,10 @@ interface Station {
 interface StationTableViewProps {
   stations: Station[]
   onStationClick: (station: Station) => void
-  onStationAction: (stationId: string, action: string, data?: any) => void
+  onStationAction: (stationId: string, action: string, data?: Record<string, unknown>) => void
   onDelete: (station: Station) => void
   updateStationStatus: (stationId: string, status: Station["status"]) => void
-   currentUserRole: "admin" | "moderator"
+  currentUserRole: "admin" | "moderator"
 }
 
 const StationTableView: React.FC<StationTableViewProps> = ({
@@ -66,11 +66,27 @@ const StationTableView: React.FC<StationTableViewProps> = ({
     wsService.connect()
 
     wsService.onMessage = (data) => {
-      if (data.type === "STATION_STATUS") {
-        updateStationStatus(data.stationId, data.status)
-      }
-      if (data.type === "STATION_UPDATE" && data.station) {
-        updateStationStatus(data.station.id, data.station.status)
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "type" in data
+      ) {
+        const d = data as Record<string, unknown>;
+        if (d.type === "STATION_STATUS" && typeof d.stationId === "string" && typeof d.status === "string") {
+          updateStationStatus(d.stationId, d.status as Station["status"]);
+        }
+        if (
+          d.type === "STATION_UPDATE" &&
+          typeof d.station === "object" &&
+          d.station !== null &&
+          "id" in d.station &&
+          "status" in d.station
+        ) {
+          const s = d.station as Record<string, unknown>;
+          if (typeof s.id === "string" && typeof s.status === "string") {
+            updateStationStatus(s.id, s.status as Station["status"]);
+          }
+        }
       }
     }
 
@@ -194,21 +210,7 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                   ₹{station.hourlyRate}/hr
                 </span>
               </TableCell>
-               {/* 👇 Hand Raise */}
-      <TableCell>
-        {station.handRaised ? (
-          <Badge
-            variant="outline"
-            className="bg-yellow-100 text-yellow-800 border-yellow-300 flex items-center"
-          >
-            <Hand className="w-3 h-3 mr-1" />
-            Hand Raised
-          </Badge>
-        ) : (
-          <span className="text-sm text-muted-foreground">-</span>
-        )}
-      </TableCell>
-
+              {/* 👇 Session */}
               <TableCell>
                 {station.currentSession ? (
                   <div className="space-y-1">
@@ -220,6 +222,20 @@ const StationTableView: React.FC<StationTableViewProps> = ({
                       {formatTime(station.currentSession.timeRemaining)} left
                     </div>
                   </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+              {/* 👇 Hand Raise */}
+              <TableCell>
+                {station.handRaised ? (
+                  <Badge
+                    variant="outline"
+                    className="bg-yellow-100 text-yellow-800 border-yellow-300 flex items-center"
+                  >
+                    <Hand className="w-3 h-3 mr-1" />
+                    Hand Raised
+                  </Badge>
                 ) : (
                   <span className="text-sm text-muted-foreground">-</span>
                 )}
@@ -288,7 +304,7 @@ const StationTableView: React.FC<StationTableViewProps> = ({
           onClose={() => setShowSessionPopup(false)}
           onAction={onStationAction}
           onDelete={() => onDelete(selectedStation)}
-          userRole={currentUserRole} 
+          userRole={currentUserRole}
         />
       )}
     </div>

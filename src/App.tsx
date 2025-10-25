@@ -19,8 +19,16 @@ const App = () => {
   const { token, isAuthenticated, setToken, removeToken } = useToken();
   const [loading, setLoading] = useState(true);
 
-  // ✅ Initialize currentUser synchronously from sessionStorage
-  const [currentUser, setCurrentUser] = useState<any>(() => {
+    // ✅ Initialize currentUser synchronously from sessionStorage
+    interface User {
+      id?: string;
+      username: string;
+      email: string;
+      role: string;
+      loginTime?: string;
+      [key: string]: unknown;
+    }
+    const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const userData = sessionStorage.getItem("currentUser");
     if (userData) {
       try {
@@ -47,7 +55,7 @@ const App = () => {
   }, [token, currentUser]);
 
   // Handle login
-  const handleLogin = (newToken: string, userInfo: any) => {
+  const handleLogin = (newToken: string, userInfo: User) => {
     setToken(newToken);
     const userWithLoginTime = { ...userInfo, loginTime: new Date().toISOString() };
     sessionStorage.setItem("currentUser", JSON.stringify(userWithLoginTime));

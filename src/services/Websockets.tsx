@@ -12,7 +12,7 @@ function decodeJwt(token: string) {
 // ✅ Fetch fresh token (user first, then dummy)
 async function fetchFreshToken(): Promise<string> {
   const BUFFER_MS = 30_000; // 30 sec buffer
-  let token = localStorage.getItem("token") || localStorage.getItem("token-dummy");
+  const token = localStorage.getItem("token") || localStorage.getItem("token-dummy");
 
   const isValid = (t: string) => {
     const payload = decodeJwt(t);
@@ -48,25 +48,25 @@ const API_BASE_URL = (() => {
 // ✅ WebSocket URL generator
 async function getWebSocketUrl(): Promise<string> {
   const token = await fetchFreshToken();
-  const params = new URLSearchParams(window.location.search);
-  const override = params.get("ws") || localStorage.getItem("wsBase");
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const hostname = window.location.hostname;
-  let baseUrl = override ? override.replace(/\/+$/, "") : `${wsProtocol}//${hostname}:8087`;
-  if (!/^wss?:\/\//.test(baseUrl)) baseUrl = `${wsProtocol}//${baseUrl}`;
-  return `${baseUrl}/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+  return `${wsProtocol}//${hostname}:8087/ws/admin${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 }
 
 export default class AdminWebSocketService {
+  private notificationHandler: ((msg: { type?: string; message?: string }) => void) | null = null;
+  public registerNotificationHandler(handler: (msg: { type?: string; message?: string }) => void) {
+    this.notificationHandler = handler;
+  }
   private static instance: AdminWebSocketService;
   private socket: WebSocket | null = null;
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
   private readonly reconnectInterval = 3000;
 
-  public onMessage: ((data: any) => void) | null = null;
+  public onMessage: ((data: unknown) => void) | null = null;
   public onConnectionChange: ((state: ConnectionState) => void) | null = null;
-  public onError: ((error: any) => void) | null = null;
+  public onError: ((error: unknown) => void) | null = null;
   public onClose: (() => void) | null = null;
 
   public static getInstance(): AdminWebSocketService {
@@ -79,9 +79,7 @@ export default class AdminWebSocketService {
   private constructor() { }
 
   async connect(): Promise<void> {
-    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-      return; // already connected
-    }
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
 
     const WS_URL = await getWebSocketUrl();
     if (!WS_URL) {
@@ -90,41 +88,40 @@ export default class AdminWebSocketService {
     }
 
     this.socket = new WebSocket(WS_URL);
+
     this.socket.onopen = () => {
       console.log("Admin WebSocket connected ✅");
       this.reconnectAttempts = 0;
       this.onConnectionChange?.("connected");
-      this.send({ type: "subscribe_analytics" });
+      this.send({ type: "subscribe_analytics" }); // subscribe to real-time station/user data
     };
 
     this.socket.onmessage = (event) => {
-      let data: any;
-
-      // If already an object, use it directly; otherwise parse
-      if (typeof event.data === "string") {
-        try {
-          data = JSON.parse(event.data);
-        } catch (error) {
-          console.error("Error parsing WS message", event.data, error);
-          return;
-        }
-      } else {
-        data = event.data;
+      let data: unknown;
+      try {
+        data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+      } catch (error) {
+        console.error("Error parsing WS message", event.data, error);
+        return;
       }
-
+      console.log('[WS RECV]', data);
       this.onMessage?.(data);
+      // Call notification handler if message is a notification
+      if (this.notificationHandler && typeof data === "object" && data && (data as { type?: string }).type === "notification") {
+        this.notificationHandler(data as { type?: string; message?: string });
+      }
     };
 
     this.socket.onerror = (error) => {
       console.error("WebSocket error", error);
       this.onConnectionChange?.("error");
-      this.onError?.(error); // trigger external handler
+      this.onError?.(error);
     };
 
     this.socket.onclose = async () => {
       this.socket = null;
       this.onConnectionChange?.("disconnected");
-      this.onClose?.(); // trigger external handler
+      this.onClose?.();
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
         setTimeout(async () => {
           this.reconnectAttempts++;
@@ -133,7 +130,6 @@ export default class AdminWebSocketService {
       }
     };
   }
-
 
   disconnect(): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -146,6 +142,7 @@ export default class AdminWebSocketService {
 
   send(message: object): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
+      console.log('[WS SEND]', message);
       this.socket.send(JSON.stringify(message));
     }
   }
@@ -156,6 +153,33 @@ export default class AdminWebSocketService {
 
   requestRealTimeData(): void {
     this.send({ type: "request_real_time_data" });
+  }
+
+  updateSessionTime(stationId: string, userId: string, sessionId: string, newEndTime: number) {
+    this.send({
+      type: "session_update",
+      data: { stationId, userId, sessionId, endTime: newEndTime }
+    });
+     console.log('[WS SEND]', stationId);
+  }
+
+  endSession(sessionId: string) {
+    this.send({
+      type: "session_end",
+      sessionId
+    });
+     console.log('[WS SEND]', sessionId);
+  }
+
+  startSession(stationId: string, userId: string, gameId: string, durationMinutes: number) {
+    this.send({
+      type: "session_start",
+      stationId,
+      userId,
+      gameId,
+      durationMinutes
+    });
+     console.log('[WS SEND]', { stationId, userId, gameId, durationMinutes });
   }
 
   public isConnected(): boolean {

@@ -39,7 +39,7 @@ const AnalyticsHub: React.FC = () => {
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [totalStations, setTotalStations] = useState(0);
-  const [stationStatuses, setStationStatuses] = useState<Record<string, any>>({});
+  const [stationStatuses, setStationStatuses] = useState<Record<string, unknown>>({});
 const [systemStatus, setSystemStatus] = useState<{ status: string; message: string; timestamp?: number } | null>(null);
   const navigate = useNavigate();
 
@@ -113,6 +113,7 @@ const [systemStatus, setSystemStatus] = useState<{ status: string; message: stri
 
       ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
+  console.log('[WS RECEIVE]', msg);
 
   switch (msg.type) {
     // ✅ Analytics data updates
@@ -131,7 +132,9 @@ const [systemStatus, setSystemStatus] = useState<{ status: string; message: stri
         setStationStatuses((prev) => ({
           ...prev,
           [msg.data.stationId]: {
-            ...prev[msg.data.stationId],
+            ...((typeof prev[msg.data.stationId] === 'object' && prev[msg.data.stationId] !== null)
+              ? (prev[msg.data.stationId] as object)
+              : {}),
             ...msg.data,
             lastUpdated: new Date().toISOString(),
           },
