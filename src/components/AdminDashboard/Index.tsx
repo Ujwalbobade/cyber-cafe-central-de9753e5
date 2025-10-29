@@ -15,6 +15,7 @@ import StationModal from '../Station/StationModal';
 import DeleteConfirmationDialog from '@/components/ui/delete-confirmation-dialog';
 import LogoutDialog from './components/LogoutDailog';
 import CreditsTab from '../Credits/Credits';
+import TimeRequestsManagement from '../TimeRequests/TimeRequestsManagement';
 
 // Import hooks
 import { useStationActions } from './hooks/useStationAction';
@@ -36,7 +37,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [loading, setLoading] = useState(true);
   const [systemConfig, setSystemConfig] = useState<any>(null);
 const [activeTab, setActiveTab] = useState<
-  'dashboard' | 'stations' | 'userManagement' | 'credits'
+  'dashboard' | 'stations' | 'userManagement' | 'credits' | 'timeRequests'
 >('dashboard');
 
   // UI state
@@ -151,6 +152,14 @@ const [activeTab, setActiveTab] = useState<
         )}
         {activeTab === 'credits' && (
           <CreditsTab stations={stations} setActiveTab={setActiveTab} />
+        )}
+        {activeTab === 'timeRequests' && (
+          <div className="space-y-6 animate-slide-in-gaming">
+            <h2 className="text-2xl md:text-3xl font-gaming font-bold text-foreground mb-4">
+              TIME REQUESTS
+            </h2>
+            <TimeRequestsManagement />
+          </div>
         )}
       </main>
 

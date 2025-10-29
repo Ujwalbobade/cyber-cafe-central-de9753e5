@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 interface MobileNavigationProps {
-  activeTab: 'dashboard' | 'stations' | 'userManagement'|'credits';
-  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement'|'credits') => void;
+  activeTab: 'dashboard' | 'stations' | 'userManagement'|'credits'|'timeRequests';
+  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement'|'credits'|'timeRequests') => void;
   mobileNavOpen: boolean;
   setMobileNavOpen: (open: boolean) => void;
 }

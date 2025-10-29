@@ -200,3 +200,11 @@ export const updateUser = (id: string, updatedUser: any) =>
     method: "PUT",
     body: JSON.stringify(updatedUser),
   });
+
+// ----------------- TIME REQUESTS -----------------
+export const getTimeRequests = () => apiFetch("/auth/Session/TimeRequests");
+
+export const approveTimeRequest = (id: number, approved: boolean) =>
+  apiFetch(`/auth/ApproveTimeRequest/${id}?approved=${approved}`, {
+    method: "POST",
+  });

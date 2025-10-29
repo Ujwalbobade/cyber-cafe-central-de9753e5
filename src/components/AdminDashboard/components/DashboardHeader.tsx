@@ -17,8 +17,8 @@ interface DashboardHeaderProps {
   systemConfig: any;
   currentUser: any;
   connectionStatus: 'connected' | 'disconnected' | 'error';
-  activeTab: 'dashboard' | 'stations' | 'userManagement'|'credits';
-  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement'|'credits') => void;
+  activeTab: 'dashboard' | 'stations' | 'userManagement'|'credits'|'timeRequests';
+  setActiveTab: (tab: 'dashboard' | 'stations' | 'userManagement'|'credits'|'timeRequests') => void;
   onLogout: () => void;
 }
 
@@ -107,6 +107,16 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               >
                 <Cog className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
                 <span className="hidden md:inline">Settings</span>
+              </Button>
+
+              <Button
+                variant={activeTab === 'timeRequests' ? 'default' : 'ghost'}
+                onClick={() => setActiveTab('timeRequests')}
+                className={`${activeTab === 'timeRequests' ? 'btn-gaming' : 'hover:bg-primary/10'} px-2 md:px-4`}
+                size="sm"
+              >
+                <Activity className="w-4 h-4 md:w-5 md:h-5 md:mr-2" />
+                <span className="hidden md:inline">Time Requests</span>
               </Button>
 
               {/* User Dropdown */}
