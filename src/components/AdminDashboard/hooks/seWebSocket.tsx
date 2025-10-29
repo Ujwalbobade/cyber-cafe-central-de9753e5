@@ -10,8 +10,8 @@ export const useWebSocket = (setStations: React.Dispatch<React.SetStateAction<St
 
     ws.onConnectionChange = (state) => setConnectionStatus(state);
 
-    ws.onMessage = (event) => {
-      let msg;
+    ws.onMessage = (event: any) => {
+      let msg: any;
       try {
         msg = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
       } catch (err) {

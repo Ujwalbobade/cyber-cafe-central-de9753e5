@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import ProfileInfo from "@/components/userInfo/ProfileInfo";
+import ProfileInfo from "@/components/UserInfo/ProfileInfo";
 import { getAllUsers, updateUser } from "@/services/apis/api";
 
 interface User {

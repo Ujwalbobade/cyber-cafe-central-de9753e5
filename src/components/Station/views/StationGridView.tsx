@@ -26,7 +26,7 @@ const StationGridView: React.FC<StationGridViewProps> = ({
     const [selectedStation, setSelectedStation] = React.useState<Station | null>(null)
 
   useEffect(() => {
-    stationWS.onMessage = (data) => {
+    stationWS.onMessage = (data: any) => {
       if (data.type === "STATION_STATUS") {
         updateStationStatus(data.stationId, data.status)
       }

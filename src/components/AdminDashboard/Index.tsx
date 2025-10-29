@@ -10,7 +10,7 @@ import DashboardHeader from './components/DashboardHeader';
 import MobileNavigation from './components/MobileNavidations';
 import DashboardOverview from './components/DashBoardOverview';
 import StationsManagement from './components/StationsManagement';
-import UserManagement from '../userInfo/UserManagement';
+import UserManagement from '../UserInfo/UserManagement';
 import StationModal from '../Station/StationModal';
 import DeleteConfirmationDialog from '@/components/ui/delete-confirmation-dialog';
 import LogoutDialog from './components/LogoutDailog';

@@ -7,7 +7,7 @@ import LoginPage from "./components/Login/LoginPage";
 import AdminDashboard from "./components/AdminDashboard/Index";
 import AnalyticsHub from "./components/Analytics/AnalyticsHub";
 import SystemSettings from "./components/SystemConfiguration/SystemConfig";
-import UserManagement from "@/components/userInfo/UserManagement";
+import UserManagement from '@/components/UserInfo/UserManagement';
 import { useToken } from "./utils/TokenProvider";
 import { SystemConfigProvider } from "@/utils/SystemConfigContext";
 import { useEffect, useState } from "react";

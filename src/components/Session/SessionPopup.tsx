@@ -425,19 +425,34 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
 
           {/* Add Time */}
           {station.status === "OCCUPIED" && station.currentSession && rolePerms.canStartSession && (
-            <div className="mb-3">
-              <h4 className="text-sm font-semibold mb-2">Add Time</h4>
-              <div className="grid grid-cols-4 gap-1">
-                {allowedTimes.map((m) => (
-                  <Button
-                    key={m}
-                    onClick={() => handleAddQuickTime(m)}
-                    size="sm"
-                    variant="outline"
-                  >
-                    +{m < 60 ? `${m}m` : `${m / 60}h`} (₹{(station.hourlyRate * m) / 60})
-                  </Button>
-                ))}
+            <div className="mb-4 p-4 bg-gradient-to-br from-primary/10 to-accent/5 border border-primary/20 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  Add More Time
+                </h4>
+                <Badge variant="outline" className="text-xs">
+                  ₹{station.hourlyRate}/hr
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {allowedTimes.map((m) => {
+                  const price = (station.hourlyRate * m) / 60;
+                  return (
+                    <Button
+                      key={m}
+                      onClick={() => handleAddQuickTime(m)}
+                      size="lg"
+                      variant="outline"
+                      className="flex flex-col h-auto py-3 hover:bg-primary/10 hover:border-primary transition-all"
+                    >
+                      <div className="font-bold text-base text-primary">
+                        +{m < 60 ? `${m}m` : `${m / 60}h`}
+                      </div>
+                      <div className="text-xs text-muted-foreground">₹{price}</div>
+                    </Button>
+                  );
+                })}
               </div>
             </div>
           )}
