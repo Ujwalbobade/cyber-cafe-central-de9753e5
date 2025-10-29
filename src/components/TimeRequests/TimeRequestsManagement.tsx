@@ -8,6 +8,7 @@ import { Clock, Check, X, Zap } from "lucide-react";
 
 interface TimeRequest {
   id: number;
+  userId: number;
   session: {
     id: string;
     station: {
@@ -17,7 +18,8 @@ interface TimeRequest {
   };
   additionalMinutes: number;
   status: "PENDING" | "APPROVED" | "REJECTED";
-  requestedAt: string;
+  amount?: number;
+  createdAt: string;
   approvedAt?: string;
 }
 
@@ -110,13 +112,26 @@ const TimeRequestsManagement: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4" />
-                      <span>Requested: {new Date(request.requestedAt).toLocaleString()}</span>
+                      <span>Requested: {new Date(request.createdAt).toLocaleString()}</span>
                     </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Additional Time: </span>
-                      <span className="font-bold text-primary text-base">
-                        +{request.additionalMinutes} minutes
-                      </span>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Additional Time: </span>
+                        <span className="font-bold text-primary text-base">
+                          +{request.additionalMinutes} minutes
+                        </span>
+                      </div>
+                      {request.amount && (
+                        <div>
+                          <span className="text-muted-foreground">Amount: </span>
+                          <span className="font-bold text-accent">
+                            ₹{request.amount.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      User ID: {request.userId}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -167,7 +182,8 @@ const TimeRequestsManagement: React.FC = () => {
                       {getStatusBadge(request.status)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      +{request.additionalMinutes} min • {new Date(request.requestedAt).toLocaleString()}
+                      +{request.additionalMinutes} min • {new Date(request.createdAt).toLocaleString()}
+                      {request.amount && ` • ₹${request.amount.toFixed(2)}`}
                     </div>
                   </div>
                 </div>
