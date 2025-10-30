@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Station } from "@/components/Station/Types/Stations";
-import { createStation, deleteStation, lockStation, unlockStation, startSession, endSession, addTime } from '../../../services/apis/api';
+import { createStation, deleteStation, lockStation, unlockStation } from '../../../services/apis/api';
+import AdminWebSocketService from '../../../services/Websockets';
 
 export const useStationActions = (
   stations: Station[],
@@ -91,9 +92,16 @@ export const useStationActions = (
           break;
 
         case "start-session":
-          const session = await startSession(stationId, data);
-          let tr = Number(session.timeRemaining) || 0;
-          if (tr > 1000) tr = Math.ceil(tr / 60);
+          // Use WebSocket to start session
+          const ws = AdminWebSocketService.getInstance();
+          ws.startSession(
+            stationId,
+            data.userId || "guest",
+            data.gameId || "general",
+            data.durationMinutes
+          );
+          
+          // Optimistically update UI
           setStations(prev =>
             prev.map(station =>
               station.id === stationId
@@ -101,38 +109,41 @@ export const useStationActions = (
                   ...station,
                   status: "OCCUPIED",
                   currentSession: {
-                    id: session.id,
-                    customerName: session.customerName,
-                    startTime: session.startTime,
-                    timeRemaining: tr,
+                    id: `temp-${Date.now()}`, // Temporary ID until WS confirms
+                    customerName: data.customerName,
+                    startTime: new Date().toISOString(),
+                    timeRemaining: data.durationMinutes,
                   },
                 }
                 : station
             )
           );
-          toast({ title: "Session Started", description: `Session started for ${data.customerName}.` });
+          toast({ title: "Session Starting", description: `Starting session for ${data.customerName}...` });
           break;
 
         case "end-session":
           if (!data?.sessionId) throw new Error("Session ID required to end session");
 
-          const endedSession = await endSession(data.sessionId);
+          // Use WebSocket to end session
+          const wsEnd = AdminWebSocketService.getInstance();
+          wsEnd.endSession(data.sessionId);
 
+          // Optimistically update UI
           setStations(prev =>
             prev.map(station => {
               if (String(station.currentSession?.id) === String(data.sessionId)) {
                 const pastSession = {
-                  id: endedSession.id,
-                  customerName: endedSession.customerName,
-                  startTime: endedSession.startTime,
-                  endTime: endedSession.endTime,
+                  id: data.sessionId,
+                  customerName: station.currentSession.customerName,
+                  startTime: station.currentSession.startTime,
+                  endTime: new Date().toISOString(),
                 };
 
                 return {
                   ...station,
                   status: "AVAILABLE",
                   currentSession: undefined,
-                  pastSessions: [...(station.pastSessions || []), pastSession], // ✅ Add to pastSessions
+                  pastSessions: [...(station.pastSessions || []), pastSession],
                 };
               }
               return station;
@@ -140,14 +151,28 @@ export const useStationActions = (
           );
 
           toast({
-            title: "Session Ended",
-            description: `Session ${data.sessionId} has been ended.`,
+            title: "Session Ending",
+            description: `Ending session...`,
           });
           break;
 
         case "add-time":
           if (!data?.sessionId || !data?.minutes) throw new Error("Session ID and minutes required");
-          const updatedSession = await addTime(data.sessionId, data.minutes);
+          
+          // Use WebSocket to add time
+          const wsTime = AdminWebSocketService.getInstance();
+          const currentStation = stations.find(s => s.id === stationId);
+          if (currentStation?.currentSession) {
+            const newEndTime = Date.now() + (currentStation.currentSession.timeRemaining + data.minutes) * 60000;
+            wsTime.updateSessionTime(
+              stationId,
+              data.userId || "guest",
+              data.sessionId,
+              newEndTime
+            );
+          }
+
+          // Optimistically update UI
           setStations(prev =>
             prev.map(station =>
               station.id === stationId && station.currentSession
@@ -155,13 +180,13 @@ export const useStationActions = (
                   ...station,
                   currentSession: {
                     ...station.currentSession,
-                    timeRemaining: updatedSession.timeRemaining,
+                    timeRemaining: station.currentSession.timeRemaining + data.minutes,
                   },
                 }
                 : station
             )
           );
-          toast({ title: "Time Added", description: `${data.minutes} minutes added.` });
+          toast({ title: "Time Adding", description: `Adding ${data.minutes} minutes...` });
           break;
 
         case "raise-hand":
@@ -170,12 +195,12 @@ export const useStationActions = (
               station.id === stationId ? { ...station, handRaised: !station.handRaised } : station
             )
           );
-          const station = stations.find(s => s.id === stationId);
-          if (station) {
+          const targetStation = stations.find(s => s.id === stationId);
+          if (targetStation) {
             toast({
-              title: station.handRaised ? "Hand Lowered" : "Hand Raised",
-              description: `${station.name} ${station.handRaised ? 'no longer needs' : 'needs'} assistance`,
-              variant: station.handRaised ? "default" : "destructive"
+              title: targetStation.handRaised ? "Hand Lowered" : "Hand Raised",
+              description: `${targetStation.name} ${targetStation.handRaised ? 'no longer needs' : 'needs'} assistance`,
+              variant: targetStation.handRaised ? "default" : "destructive"
             });
           }
           break;

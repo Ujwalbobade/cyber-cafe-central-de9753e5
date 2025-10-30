@@ -165,12 +165,8 @@ export const unlockStation = (stationId: string) => apiFetch(`/auth/stations/${s
 export const getTotalStations = () => apiFetch("/auth/stations/count");
 
 // ----------------- SESSIONS -----------------
-export const startSession = (stationId: string, sessionData: any) =>
-  apiFetch("/auth/sessions/start", { method: "POST", body: JSON.stringify({ stationId, ...sessionData }) });
-
-export const endSession = (sessionId: string) => apiFetch(`/auth/sessions/${sessionId}/end`, { method: "POST" });
-export const addTime = (sessionId: string, minutes: number) =>
-  apiFetch(`/auth/sessions/${sessionId}/add-time`, { method: "POST", body: JSON.stringify({ minutes }) });
+// NOTE: Session management now uses WebSocket instead of API calls
+// See AdminWebSocketService.startSession(), endSession(), updateSessionTime()
 
 // ----------------- ANALYTICS -----------------
 export const getAnalytics = (timeRange: string = "7days") =>
