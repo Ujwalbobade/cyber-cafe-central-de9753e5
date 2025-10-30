@@ -19,7 +19,58 @@ export const useWebSocket = (setStations: React.Dispatch<React.SetStateAction<St
         return;
       }
 
-      switch (msg.type) {
+      const { type, data } = msg;
+
+      switch (type) {
+        case "STATION_CONNECTED":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === data.stationId
+                ? { ...station, status: "OCCUPIED", ipAddress: data.ipAddress }
+                : station
+            )
+          );
+          break;
+
+        case "STATION_IDLE":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === data.stationId
+                ? { ...station, status: "AVAILABLE", ipAddress: data.ipAddress, currentSession: undefined }
+                : station
+            )
+          );
+          break;
+
+        case "STATION_DISCONNECTED":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === data.stationId
+                ? { ...station, status: "OFFLINE", currentSession: undefined }
+                : station
+            )
+          );
+          break;
+
+        case "STATION_STATUS_UPDATE":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === data.stationId
+                ? {
+                  ...station,
+                  status: data.status,
+                  currentSession: data.user ? {
+                    id: station.currentSession?.id || "",
+                    customerName: data.user,
+                    startTime: station.currentSession?.startTime || new Date().toISOString(),
+                    timeRemaining: data.timeLeft || 0
+                  } : undefined
+                }
+                : station
+            )
+          );
+          break;
+
         case "SESSION_UPDATE":
           setStations((prev) =>
             prev.map((station) =>
@@ -38,8 +89,40 @@ export const useWebSocket = (setStations: React.Dispatch<React.SetStateAction<St
             )
           );
           break;
-        case "analytics_update":
+
+        case "USER_LOGIN":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === data.stationId
+                ? { ...station, status: "OCCUPIED" }
+                : station
+            )
+          );
           break;
+
+        case "USER_LOGOUT":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === data.stationId
+                ? { ...station, status: "AVAILABLE", currentSession: undefined }
+                : station
+            )
+          );
+          break;
+
+        case "GAME_LAUNCH":
+          console.log(`Game launched on station ${data.stationId}: ${data.gameName}`);
+          break;
+
+        case "TIME_REQUEST_SUBMITTED":
+        case "time_request":
+          console.log("Time request received:", data);
+          break;
+
+        case "analytics_update":
+        case "real_time_data":
+          break;
+
         default:
           console.log("Unhandled WS message:", msg);
       }
