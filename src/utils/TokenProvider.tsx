@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 
 type TokenContextType = {
   token: string | null;
@@ -32,7 +31,6 @@ const isTokenValid = (token: string | null): boolean => {
 type Props = { children: ReactNode };
 
 export const TokenProvider: React.FC<Props> = ({ children }) => {
-  const navigate = useNavigate();
   const [token, setTokenState] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
 
   const setToken = (newToken: string) => {
@@ -49,13 +47,12 @@ export const TokenProvider: React.FC<Props> = ({ children }) => {
 
   const isAuthenticated = isTokenValid(token);
 
-  // Auto-remove expired token and redirect to login
+  // Auto-remove expired token
   useEffect(() => {
     if (token && !isTokenValid(token)) {
       removeToken();
-      navigate("/login");
     }
-  }, [token, navigate]);
+  }, [token]);
 
   return (
     <TokenContext.Provider value={{ token, setToken, removeToken, isAuthenticated }}>

@@ -9,6 +9,7 @@ import AnalyticsHub from "./components/Analytics/AnalyticsHub";
 import SystemSettings from "./components/SystemConfiguration/SystemConfig";
 import UserManagement from '@/components/UserInfo/UserManagement';
 import { useToken } from "./utils/TokenProvider";
+import { TokenExpirationHandler } from "./utils/TokenExpirationHandler";
 import { SystemConfigProvider } from "@/utils/SystemConfigContext";
 import { useEffect, useState } from "react";
 import ResetPasswordPage from "@/components/Login/Passwordreset/ResetPasswordPage";
@@ -101,6 +102,7 @@ const App = () => {
         <Sonner />
         <SystemConfigProvider>
           <BrowserRouter>
+            <TokenExpirationHandler />
             <Routes>
               {/* Login */}
               <Route
