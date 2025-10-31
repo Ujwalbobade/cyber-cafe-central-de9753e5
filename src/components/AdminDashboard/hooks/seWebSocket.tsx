@@ -19,6 +19,10 @@ export const useWebSocket = (setStations: React.Dispatch<React.SetStateAction<St
         return;
       }
 
+      if (!msg) {
+        console.warn('WebSocket message is undefined:', event);
+        return;
+      }
       const { type, data } = msg;
 
       switch (type) {

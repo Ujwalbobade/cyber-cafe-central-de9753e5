@@ -9,18 +9,15 @@ import { Clock, Check, X, Zap } from "lucide-react";
 interface TimeRequest {
   id: number;
   userId: number;
-  session: {
-    id: string;
-    station: {
-      id: string;
-      name: string;
-    };
-  };
+  sessionId: number;
   additionalMinutes: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
   amount?: number;
   createdAt: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
   approvedAt?: string;
+  username?: string;
+  stationId?: number;
+  stationName?: string;
 }
 
 const TimeRequestsManagement: React.FC = () => {
@@ -28,7 +25,7 @@ const TimeRequestsManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchRequests = async () => {
+  const fetchRequests = React.useCallback(async () => {
     try {
       const data = await getTimeRequests();
       setRequests(data);
@@ -42,13 +39,13 @@ const TimeRequestsManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchRequests();
     const interval = setInterval(fetchRequests, 10000); // Refresh every 10 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchRequests]);
 
   const handleApprove = async (id: number, approved: boolean) => {
     try {
@@ -106,7 +103,7 @@ const TimeRequestsManagement: React.FC = () => {
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-3">
                       <h4 className="font-bold text-lg text-foreground">
-                        {request.session.station.name}
+                        {request.stationName}
                       </h4>
                       {getStatusBadge(request.status)}
                     </div>
@@ -177,7 +174,7 @@ const TimeRequestsManagement: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-foreground">
-                        {request.session.station.name}
+                        {request.stationName}
                       </span>
                       {getStatusBadge(request.status)}
                     </div>

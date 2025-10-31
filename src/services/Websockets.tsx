@@ -63,6 +63,8 @@ export default class AdminWebSocketService {
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
   private readonly reconnectInterval = 3000;
+  private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
   public onMessage: ((data: unknown) => void) | null = null;
   public onConnectionChange: ((state: ConnectionState) => void) | null = null;
@@ -93,7 +95,9 @@ export default class AdminWebSocketService {
       console.log("Admin WebSocket connected ✅");
       this.reconnectAttempts = 0;
       this.onConnectionChange?.("connected");
-      this.send({ type: "subscribe_analytics" }); // subscribe to real-time station/user data
+      this.send({ type: "subscribe_analytics" });
+      // Start heartbeat
+      this.startHeartbeat();
     };
 
     this.socket.onmessage = (event) => {
@@ -103,6 +107,14 @@ export default class AdminWebSocketService {
       } catch (error) {
         console.error("Error parsing WS message", event.data, error);
         return;
+      }
+      // Heartbeat: expect a 'heartbeat' type from server
+      if (typeof data === "object" && data && (data as any).type === "heartbeat") {
+        this.onConnectionChange?.("connected");
+        if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
+        this.heartbeatTimeout = setTimeout(() => {
+          this.onConnectionChange?.("disconnected");
+        }, 15000); // 15s timeout for heartbeat
       }
       console.log('[WS RECV]', data);
       this.onMessage?.(data);
@@ -122,6 +134,7 @@ export default class AdminWebSocketService {
       this.socket = null;
       this.onConnectionChange?.("disconnected");
       this.onClose?.();
+      this.stopHeartbeat();
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
         setTimeout(async () => {
           this.reconnectAttempts++;
@@ -129,6 +142,20 @@ export default class AdminWebSocketService {
         }, this.reconnectInterval);
       }
     };
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      this.send({ type: "heartbeat" });
+    }, 5000); // send heartbeat every 5s
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatInterval) { clearInterval(this.heartbeatInterval); }
+    if (this.heartbeatTimeout) { clearTimeout(this.heartbeatTimeout); }
+    this.heartbeatInterval = null;
+    this.heartbeatTimeout = null;
   }
 
   disconnect(): void {
@@ -141,48 +168,30 @@ export default class AdminWebSocketService {
   }
 
   send(message: object): void {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      console.log('[WS SEND]', message);
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
+      console.log('[WS SEND]', message);
+    } else {
+      console.warn("❌ WebSocket is not open. Message not sent:", message);
     }
-  }
-
-  requestAnalytics(timeRange: string = "7days"): void {
-    this.send({ type: "request_analytics", timeRange });
-  }
-
-  requestRealTimeData(): void {
-    this.send({ type: "request_real_time_data" });
-  }
-
-  updateSessionTime(stationId: string, userId: string, sessionId: string, newEndTime: number) {
-    this.send({
-      type: "session_update",
-      data: { stationId, userId, sessionId, endTime: newEndTime }
-    });
-     console.log('[WS SEND]', stationId);
-  }
-
-  endSession(sessionId: string) {
-    this.send({
-      type: "session_end",
-      sessionId
-    });
-     console.log('[WS SEND]', sessionId);
   }
 
   startSession(stationId: string, userId: string, gameId: string, durationMinutes: number) {
     this.send({
-      type: "session_start",
+      type: "start_session",
       stationId,
       userId,
       gameId,
       durationMinutes
     });
-     console.log('[WS SEND]', { stationId, userId, gameId, durationMinutes });
+    console.log('[WS SEND] start_session', { stationId, userId, gameId, durationMinutes });
   }
 
-  public isConnected(): boolean {
-    return this.socket != null && this.socket.readyState === WebSocket.OPEN;
+  endSession(sessionId: string) {
+    this.send({
+      type: "end_session",
+      sessionId
+    });
+    console.log('[WS SEND] end_session', { sessionId });
   }
 }
