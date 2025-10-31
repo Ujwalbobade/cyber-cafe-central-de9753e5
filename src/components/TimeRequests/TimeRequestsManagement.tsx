@@ -130,7 +130,7 @@ const TimeRequestsManagement: React.FC = () => {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      User ID: {request.userId}
+                      User : {request.username}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -181,8 +181,10 @@ const TimeRequestsManagement: React.FC = () => {
                       {getStatusBadge(request.status)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      +{request.additionalMinutes} min • {new Date(request.createdAt).toLocaleString()}
-                      {request.amount && ` • ₹${request.amount.toFixed(2)}`}
+                      Requested By : {request.username} <br />
+                      Time : +{request.additionalMinutes} min • <br/>
+                      Date : {new Date(request.createdAt).toLocaleString()} <br />
+                      Amount : {request.amount && ` • ₹${request.amount.toFixed(2)}`}
                     </div>
                   </div>
                 </div>

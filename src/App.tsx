@@ -86,14 +86,6 @@ const App = () => {
     );
   }
 
-  // ❌ No need for this check anymore because currentUser is initialized
-  // if (isAuthenticated && !currentUser) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center">
-  //       <p>Loading user data...</p>
-  //     </div>
-  //   );
-  // }
 
   return (
     <QueryClientProvider client={queryClient}>

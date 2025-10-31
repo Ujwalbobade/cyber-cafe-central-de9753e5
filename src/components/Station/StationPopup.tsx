@@ -1,25 +1,17 @@
 import React, { useState, useEffect, useCallback } from "react";
+import AdminWebSocketService from '@/services/Websockets';
 import {
   Monitor,
   Gamepad2,
   Play,
   Square,
   Lock,
-  Unlock,
-  Trash2,
   User,
   Zap,
-  Settings,
-  CreditCard,
-  UserPlus,
-  Hand,
   Power,
   RotateCcw,
   Wrench,
   Wifi,
-  Package,
-  Plus,
-  Keyboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +104,8 @@ const StationPopup: React.FC<StationPopupProps> = ({
     notes: "",
   });
 
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+
   useEffect(() => {
     getSystemConfig()
       .then((data) => {
@@ -120,7 +114,22 @@ const StationPopup: React.FC<StationPopupProps> = ({
         }
       })
       .catch((err) => console.error("Failed to fetch config:", err));
-  }, []);
+
+    // WebSocket online status check
+    const ws = AdminWebSocketService.getInstance();
+    type StationStatusMsg = { type: string; stations: Array<{ id: string; online: boolean }> };
+    const handleWSMessage = (msg: StationStatusMsg) => {
+      if (msg.type === 'station_status' && Array.isArray(msg.stations) && station) {
+        const found = msg.stations.find((s) => s.id === station.id);
+        if (found) setIsOnline(!!found.online);
+      }
+    };
+    ws.onMessage = handleWSMessage;
+    ws.connect();
+    return () => {
+      ws.onMessage = null;
+    };
+  }, [station]);
 
   if (!station) return null;
 
@@ -128,9 +137,9 @@ const StationPopup: React.FC<StationPopupProps> = ({
 
   // Status Display
   const statusMap = {
-    AVAILABLE: { text: "Available", badge: "bg-green-100 text-green-800" },
-    OCCUPIED: { text: "In Session", badge: "bg-red-100 text-red-800" },
-    MAINTENANCE: { text: "Maintenance", badge: "bg-yellow-100 text-yellow-800" },
+    AVAILABLE: { text: isOnline ? "Available" : "Offline", badge: isOnline ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-500" },
+    OCCUPIED: { text: isOnline ? "In Session" : "Offline", badge: isOnline ? "bg-red-100 text-red-800" : "bg-gray-200 text-gray-500" },
+    MAINTENANCE: { text: isOnline ? "Maintenance" : "Offline", badge: isOnline ? "bg-yellow-100 text-yellow-800" : "bg-gray-200 text-gray-500" },
     OFFLINE: { text: "Offline", badge: "bg-gray-200 text-gray-500" },
   };
 
