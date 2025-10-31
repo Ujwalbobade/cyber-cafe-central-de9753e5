@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { getTimeRequests, approveTimeRequest } from "@/services/apis/api";
+import { getTimeRequests } from "@/services/apis/api";
+import AdminWebSocketService from "@/services/Websockets";
 import { Clock, Check, X, Zap } from "lucide-react";
 
 interface TimeRequest {
@@ -49,7 +50,8 @@ const TimeRequestsManagement: React.FC = () => {
 
   const handleApprove = async (id: number, approved: boolean) => {
     try {
-      await approveTimeRequest(id, approved);
+      const ws = AdminWebSocketService.getInstance();
+      ws.approveTimeRequest(id, approved);
       toast({
         title: approved ? "Request Approved" : "Request Rejected",
         description: approved

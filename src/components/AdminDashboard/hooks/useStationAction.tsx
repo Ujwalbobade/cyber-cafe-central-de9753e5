@@ -163,12 +163,9 @@ export const useStationActions = (
           const wsTime = AdminWebSocketService.getInstance();
           const currentStation = stations.find(s => s.id === stationId);
           if (currentStation?.currentSession) {
-            const newEndTime = Date.now() + (currentStation.currentSession.timeRemaining + data.minutes) * 60000;
             wsTime.updateSessionTime(
-              stationId,
-              data.userId || "guest",
-              data.sessionId,
-              newEndTime
+              currentStation.currentSession.id,
+              data.minutes
             );
           }
 

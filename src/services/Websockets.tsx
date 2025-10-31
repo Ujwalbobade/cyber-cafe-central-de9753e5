@@ -194,4 +194,22 @@ export default class AdminWebSocketService {
     });
     console.log('[WS SEND] end_session', { sessionId });
   }
+
+  updateSessionTime(sessionId: string, additionalMinutes: number) {
+    this.send({
+      type: "add_time",
+      sessionId,
+      additionalMinutes
+    });
+    console.log('[WS SEND] add_time', { sessionId, additionalMinutes });
+  }
+
+  approveTimeRequest(requestId: number, approved: boolean) {
+    this.send({
+      type: "approve_time_request",
+      requestId,
+      approved
+    });
+    console.log('[WS SEND] approve_time_request', { requestId, approved });
+  }
 }
