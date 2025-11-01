@@ -210,3 +210,14 @@ export const markTimeRequestCollected = (requestId: number, amountCollected: num
     method: "POST",
     body: JSON.stringify({ requestId, amountCollected }),
   });
+
+export const markTimeRequestsCollectedByUser = (data: {
+  timeRequestIds: number[];
+  totalAmount: number;
+  totalminutes: number;
+  userId: number;
+}) =>
+  apiFetch("/auth/AddTimeRequest/amountcollected", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });

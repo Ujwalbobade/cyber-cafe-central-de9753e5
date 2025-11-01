@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { getTimeRequests, markTimeRequestCollected } from "@/services/apis/api";
+import { getTimeRequests, markTimeRequestsCollectedByUser } from "@/services/apis/api";
 import AdminWebSocketService from "@/services/Websockets";
 import { Clock, Check, X, Zap, User, Search, Filter } from "lucide-react";
 
@@ -186,12 +186,13 @@ const TimeRequestsManagement: React.FC = () => {
                           // Get all unpaid requests for this user
                           const userRequests = unpaidRequests.filter(r => r.userId === summary.userId);
                           
-                          // Mark each request as collected
-                          await Promise.all(
-                            userRequests.map(req => 
-                              markTimeRequestCollected(req.id, req.amount || 0)
-                            )
-                          );
+                          // Prepare data in backend format
+                          await markTimeRequestsCollectedByUser({
+                            timeRequestIds: userRequests.map(r => r.id),
+                            totalAmount: summary.totalAmount,
+                            totalminutes: summary.totalMinutes,
+                            userId: summary.userId
+                          });
                           
                           toast({
                             title: "Payment Collected",
