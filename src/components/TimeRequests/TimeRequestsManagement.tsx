@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { getTimeRequests } from "@/services/apis/api";
 import AdminWebSocketService from "@/services/Websockets";
-import { Clock, Check, X, Zap } from "lucide-react";
+import { Clock, Check, X, Zap, User } from "lucide-react";
 
 interface TimeRequest {
   id: number;
@@ -84,12 +84,70 @@ const TimeRequestsManagement: React.FC = () => {
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
   const processedRequests = requests.filter((r) => r.status !== "PENDING");
 
+  // Aggregate by user for easy payment collection
+  const userSummary = pendingRequests.reduce((acc, request) => {
+    const key = request.userId;
+    if (!acc[key]) {
+      acc[key] = {
+        userId: request.userId,
+        username: request.username || "Unknown User",
+        totalMinutes: 0,
+        totalAmount: 0,
+        requestCount: 0,
+      };
+    }
+    acc[key].totalMinutes += request.additionalMinutes;
+    acc[key].totalAmount += request.amount || 0;
+    acc[key].requestCount += 1;
+    return acc;
+  }, {} as Record<number, { userId: number; username: string; totalMinutes: number; totalAmount: number; requestCount: number }>);
+
+  const userSummaryList = Object.values(userSummary);
+
   if (loading) {
     return <div className="text-center py-8">Loading requests...</div>;
   }
 
   return (
     <div className="space-y-6">
+      {/* User Payment Summary */}
+      {userSummaryList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-primary" />
+            <h3 className="text-xl font-bold text-foreground">Payment Collection Summary</h3>
+            <Badge variant="secondary">{userSummaryList.length} users</Badge>
+          </div>
+          <div className="grid gap-3">
+            {userSummaryList.map((summary) => (
+              <Card key={summary.userId} className="p-4 bg-gradient-to-r from-primary/5 to-accent/5 backdrop-blur border-primary/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <h4 className="font-bold text-lg text-foreground">{summary.username}</h4>
+                      <Badge variant="outline" className="text-xs">{summary.requestCount} requests</Badge>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-primary" />
+                        <span className="text-sm text-muted-foreground">Total Time:</span>
+                        <span className="font-bold text-primary text-lg">{summary.totalMinutes} min</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-accent" />
+                        <span className="text-sm text-muted-foreground">Amount to Collect:</span>
+                        <span className="font-bold text-accent text-xl">₹{summary.totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Pending Requests */}
       {pendingRequests.length > 0 && (
         <div>
