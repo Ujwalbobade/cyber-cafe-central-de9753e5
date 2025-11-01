@@ -84,8 +84,9 @@ const TimeRequestsManagement: React.FC = () => {
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
   const processedRequests = requests.filter((r) => r.status !== "PENDING");
 
-  // Aggregate by user for easy payment collection
-  const userSummary = pendingRequests.reduce((acc, request) => {
+  // Aggregate by user for easy payment collection (include APPROVED requests for payment tracking)
+  const unpaidRequests = requests.filter((r) => r.status === "PENDING" || r.status === "APPROVED");
+  const userSummary = unpaidRequests.reduce((acc, request) => {
     const key = request.userId;
     if (!acc[key]) {
       acc[key] = {
@@ -140,6 +141,22 @@ const TimeRequestsManagement: React.FC = () => {
                         <span className="font-bold text-accent text-xl">₹{summary.totalAmount.toFixed(2)}</span>
                       </div>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-3 sm:mt-0">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        toast({
+                          title: "Payment Collected",
+                          description: `Collected ₹${summary.totalAmount.toFixed(2)} from ${summary.username}`,
+                        });
+                        fetchRequests();
+                      }}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Mark as Collected
+                    </Button>
                   </div>
                 </div>
               </Card>
