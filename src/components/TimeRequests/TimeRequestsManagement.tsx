@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getTimeRequests, markTimeRequestCollected } from "@/services/apis/api";
 import AdminWebSocketService from "@/services/Websockets";
-import { Clock, Check, X, Zap, User } from "lucide-react";
+import { Clock, Check, X, Zap, User, Search, Filter } from "lucide-react";
 
 interface TimeRequest {
   id: number;
@@ -24,6 +25,10 @@ interface TimeRequest {
 const TimeRequestsManagement: React.FC = () => {
   const [requests, setRequests] = useState<TimeRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usernameFilter, setUsernameFilter] = useState("");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "APPROVED" | "REJECTED">("ALL");
   const { toast } = useToast();
 
   const fetchRequests = React.useCallback(async () => {
@@ -82,7 +87,37 @@ const TimeRequestsManagement: React.FC = () => {
   };
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
-  const processedRequests = requests.filter((r) => r.status !== "PENDING");
+  
+  // Apply filters to processed requests
+  const processedRequests = requests
+    .filter((r) => r.status !== "PENDING")
+    .filter((r) => {
+      // Username filter
+      if (usernameFilter && !r.username?.toLowerCase().includes(usernameFilter.toLowerCase())) {
+        return false;
+      }
+      
+      // Date range filter
+      if (startDateFilter) {
+        const requestDate = new Date(r.createdAt);
+        const startDate = new Date(startDateFilter);
+        if (requestDate < startDate) return false;
+      }
+      
+      if (endDateFilter) {
+        const requestDate = new Date(r.createdAt);
+        const endDate = new Date(endDateFilter);
+        endDate.setHours(23, 59, 59, 999); // Include entire end day
+        if (requestDate > endDate) return false;
+      }
+      
+      // Status filter
+      if (statusFilter !== "ALL" && r.status !== statusFilter) {
+        return false;
+      }
+      
+      return true;
+    });
 
   // Aggregate by user for easy payment collection (include APPROVED requests for payment tracking)
   const unpaidRequests = requests.filter((r) => r.status === "PENDING" || r.status === "APPROVED");
@@ -259,11 +294,82 @@ const TimeRequestsManagement: React.FC = () => {
       )}
 
       {/* Processed Requests */}
-      {processedRequests.length > 0 && (
-        <div>
-          <h3 className="text-xl font-bold text-foreground mb-4">Recent History</h3>
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="w-5 h-5 text-primary" />
+          <h3 className="text-xl font-bold text-foreground">Request History</h3>
+          <Badge variant="secondary">{processedRequests.length}</Badge>
+        </div>
+        
+        {/* Filter Controls */}
+        <Card className="p-4 mb-4 bg-card/50 backdrop-blur">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Username</label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by username"
+                  value={usernameFilter}
+                  onChange={(e) => setUsernameFilter(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Start Date</label>
+              <Input
+                type="date"
+                value={startDateFilter}
+                onChange={(e) => setStartDateFilter(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">End Date</label>
+              <Input
+                type="date"
+                value={endDateFilter}
+                onChange={(e) => setEndDateFilter(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED")}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+              >
+                <option value="ALL">All Status</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+          </div>
+          
+          {(usernameFilter || startDateFilter || endDateFilter || statusFilter !== "ALL") && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                setUsernameFilter("");
+                setStartDateFilter("");
+                setEndDateFilter("");
+                setStatusFilter("ALL");
+              }}
+            >
+              <X className="w-4 h-4 mr-1" />
+              Clear Filters
+            </Button>
+          )}
+        </Card>
+
+        {processedRequests.length > 0 ? (
           <div className="grid gap-3">
-            {processedRequests.slice(0, 10).map((request) => (
+            {processedRequests.map((request) => (
               <Card key={request.id} className="p-3 bg-card/30 backdrop-blur">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex-1">
@@ -284,8 +390,13 @@ const TimeRequestsManagement: React.FC = () => {
               </Card>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <Card className="p-8 text-center bg-card/30 backdrop-blur">
+            <Filter className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">No requests match the current filters</p>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };
