@@ -70,6 +70,10 @@ export default class AdminWebSocketService {
   public onConnectionChange: ((state: ConnectionState) => void) | null = null;
   public onError: ((error: unknown) => void) | null = null;
   public onClose: (() => void) | null = null;
+  public onStationConnected: ((station: any) => void) | null = null;
+  public onStationDisconnected: ((station: any) => void) | null = null;
+  public onStationStatus: ((stations: any[]) => void) | null = null;
+  
 
   public static getInstance(): AdminWebSocketService {
     if (!AdminWebSocketService.instance) {
@@ -95,34 +99,47 @@ export default class AdminWebSocketService {
       console.log("Admin WebSocket connected ✅");
       this.reconnectAttempts = 0;
       this.onConnectionChange?.("connected");
-      this.send({ type: "subscribe_analytics" });
+      this.send({ action: "subscribe_analytics" });
       // Start heartbeat
       this.startHeartbeat();
     };
 
-    this.socket.onmessage = (event) => {
-      let data: unknown;
-      try {
-        data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-      } catch (error) {
-        console.error("Error parsing WS message", event.data, error);
-        return;
-      }
-      // Heartbeat: expect a 'heartbeat' type from server
-      if (typeof data === "object" && data && (data as any).type === "heartbeat") {
-        this.onConnectionChange?.("connected");
-        if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
-        this.heartbeatTimeout = setTimeout(() => {
-          this.onConnectionChange?.("disconnected");
-        }, 15000); // 15s timeout for heartbeat
-      }
-      console.log('[WS RECV]', data);
-      this.onMessage?.(data);
-      // Call notification handler if message is a notification
-      if (this.notificationHandler && typeof data === "object" && data && (data as { type?: string }).type === "notification") {
-        this.notificationHandler(data as { type?: string; message?: string });
-      }
-    };
+   this.socket.onmessage = (event) => {
+  let data: any;
+  try {
+    data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+  } catch (error) {
+    console.error("Error parsing WS message", event.data, error);
+    return;
+  }
+
+  console.log("[WS RECV]", data);
+
+  // 🧭 Central message routing
+  switch (data.type) {
+    case "STATION_CONNECTED":
+      console.log("✅ Station connected:", data.data);
+      this.onStationConnected?.(data.data);
+      break;
+
+    case "STATION_DISCONNECTED":
+      console.log("⚠️ Station disconnected:", data.data);
+      this.onStationDisconnected?.(data.data);
+      break;
+
+    case "station_status":
+      this.onStationStatus?.(data.stations || []);
+      break;
+
+    case "notification":
+      this.notificationHandler?.(data);
+      break;
+
+    default:
+      console.warn("Unhandled WS message:", data);
+      this.onMessage?.(data); // fallback for generic listeners
+  }
+};
 
     this.socket.onerror = (error) => {
       console.error("WebSocket error", error);
@@ -147,10 +164,9 @@ export default class AdminWebSocketService {
   private startHeartbeat() {
     this.stopHeartbeat();
     this.heartbeatInterval = setInterval(() => {
-      this.send({ type: "heartbeat" });
+      this.send({ action : "heartbeat" });
     }, 5000); // send heartbeat every 5s
   }
-
   private stopHeartbeat() {
     if (this.heartbeatInterval) { clearInterval(this.heartbeatInterval); }
     if (this.heartbeatTimeout) { clearTimeout(this.heartbeatTimeout); }
@@ -178,7 +194,7 @@ export default class AdminWebSocketService {
 
   startSession(stationId: string, userId: string, gameId: string, durationMinutes: number) {
     this.send({
-      type: "start_session",
+      action: "start_session",
       stationId,
       userId,
       gameId,
@@ -212,4 +228,6 @@ export default class AdminWebSocketService {
     });
     console.log('[WS SEND] approve_time_request', { requestId, approved });
   }
+
+  
 }

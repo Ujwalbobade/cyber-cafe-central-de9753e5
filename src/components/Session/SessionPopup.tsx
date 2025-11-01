@@ -259,7 +259,7 @@ const SessionPopup: React.FC<SessionPopupProps> = ({
     if (sessionData.customerName.trim()) {
       onAction(station.id, "start-session", sessionData);
       setShowSessionForm(false);
-      setSessionData({ customerName: "", timeMinutes: 60, prepaidAmount: 0 });
+      setSessionData({ customerName: "", timeMinutes: 60, prepaidAmount: 30 });
       onClose();
     }
   };

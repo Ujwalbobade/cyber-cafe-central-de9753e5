@@ -106,32 +106,50 @@ const StationPopup: React.FC<StationPopupProps> = ({
 
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
-  useEffect(() => {
-    getSystemConfig()
-      .then((data) => {
-        if (data.allowedTimes && Array.isArray(data.allowedTimes)) {
-          setAllowedTimes(data.allowedTimes);
-        }
-      })
-      .catch((err) => console.error("Failed to fetch config:", err));
-
-    // WebSocket online status check
-    const ws = AdminWebSocketService.getInstance();
-    type StationStatusMsg = { type: string; stations: Array<{ id: string; online: boolean }> };
-    const handleWSMessage = (msg: StationStatusMsg) => {
-      if (msg.type === 'station_status' && Array.isArray(msg.stations) && station) {
-        const found = msg.stations.find((s) => s.id === station.id);
-        if (found) setIsOnline(!!found.online);
+useEffect(() => {
+  getSystemConfig()
+    .then((data) => {
+      if (data.allowedTimes && Array.isArray(data.allowedTimes)) {
+        setAllowedTimes(data.allowedTimes);
       }
-    };
-    ws.onMessage = handleWSMessage;
-    ws.connect();
-    return () => {
-      ws.onMessage = null;
-    };
-  }, [station]);
+    })
+    .catch((err) => console.error("Failed to fetch config:", err));
+
+  const ws = AdminWebSocketService.getInstance();
+  ws.connect();
+
+  // --- Subscribe to specific WebSocket events ---
+  ws.onStationConnected = (data) => {
+    if (data.stationId === station?.id) {
+      console.log(`✅ Station ${data.stationName} is now ACTIVE`);
+      setIsOnline(true);
+    }
+  };
+
+  ws.onStationDisconnected = (data) => {
+    if (data.stationId === station?.id) {
+      console.warn(`⚠️ Station ${data.stationName} disconnected`);
+      setIsOnline(false);
+    }
+  };
+
+  ws.onStationStatus = (stations) => {
+    if (station) {
+      const found = stations.find((s: any) => s.id === station.id);
+      if (found) setIsOnline(!!found.online);
+    }
+  };
+
+  return () => {
+    ws.onStationConnected = null;
+    ws.onStationDisconnected = null;
+    ws.onStationStatus = null;
+  };
+}, [station]);
 
   if (!station) return null;
+
+  
 
   console.log("StationPopup rendering with station:", station);
 

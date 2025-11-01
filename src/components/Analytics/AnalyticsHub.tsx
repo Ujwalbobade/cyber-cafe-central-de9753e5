@@ -102,7 +102,7 @@ const [systemStatus, setSystemStatus] = useState<{ status: string; message: stri
           console.log("✅ Connected to analytics WS");
           setConnectionState("connected");
           // Request analytics for the selected time range
-          ws.send(JSON.stringify({ type: "request_analytics", timeRange }));
+          ws.send(JSON.stringify({ action: "request_analytics", timeRange }));
           
           setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {
@@ -115,7 +115,7 @@ const [systemStatus, setSystemStatus] = useState<{ status: string; message: stri
   const msg = JSON.parse(event.data);
   console.log('[WS RECEIVE]', msg);
 
-  switch (msg.type) {
+  switch (msg.action) {
     // ✅ Analytics data updates
     case "analytics_update":
     case "analytics_response":

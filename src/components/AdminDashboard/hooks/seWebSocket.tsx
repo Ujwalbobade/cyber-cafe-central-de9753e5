@@ -131,7 +131,6 @@ export const useWebSocket = (setStations: React.Dispatch<React.SetStateAction<St
           console.log("Unhandled WS message:", msg);
       }
     };
-
     ws.onClose = () => setConnectionStatus("disconnected");
     ws.onError = () => setConnectionStatus("error");
 
