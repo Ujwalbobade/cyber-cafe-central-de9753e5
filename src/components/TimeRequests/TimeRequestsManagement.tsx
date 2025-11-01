@@ -15,7 +15,7 @@ interface TimeRequest {
   additionalMinutes: number;
   amount?: number;
   createdAt: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
   approvedAt?: string;
   username?: string;
   stationId?: number;
@@ -28,7 +28,7 @@ const TimeRequestsManagement: React.FC = () => {
   const [usernameFilter, setUsernameFilter] = useState("");
   const [startDateFilter, setStartDateFilter] = useState("");
   const [endDateFilter, setEndDateFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "APPROVED" | "REJECTED">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "APPROVED" | "REJECTED" | "PAID">("ALL");
   const { toast } = useToast();
 
   const fetchRequests = React.useCallback(async () => {
@@ -81,6 +81,8 @@ const TimeRequestsManagement: React.FC = () => {
         return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">Approved</Badge>;
       case "REJECTED":
         return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>;
+      case "PAID":
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Paid</Badge>;
       default:
         return null;
     }
@@ -119,8 +121,8 @@ const TimeRequestsManagement: React.FC = () => {
       return true;
     });
 
-  // Aggregate by user for easy payment collection (include APPROVED requests for payment tracking)
-  const unpaidRequests = requests.filter((r) => r.status === "PENDING" || r.status === "APPROVED");
+  // Aggregate by user for easy payment collection (only show unpaid requests - exclude PAID status)
+  const unpaidRequests = requests.filter((r) => r.status !== "PAID" && r.status !== "REJECTED");
   const userSummary = unpaidRequests.reduce((acc, request) => {
     const key = request.userId;
     if (!acc[key]) {
@@ -340,12 +342,13 @@ const TimeRequestsManagement: React.FC = () => {
               <label className="text-xs text-muted-foreground mb-1 block">Status</label>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED")}
+                onChange={(e) => setStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "PAID")}
                 className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
               >
                 <option value="ALL">All Status</option>
                 <option value="APPROVED">Approved</option>
                 <option value="REJECTED">Rejected</option>
+                <option value="PAID">Paid</option>
               </select>
             </div>
           </div>
