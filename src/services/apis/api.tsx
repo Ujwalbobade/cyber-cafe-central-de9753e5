@@ -204,3 +204,9 @@ export const approveTimeRequest = (id: number, approved: boolean) =>
   apiFetch(`/auth/ApproveTimeRequest/${id}?approved=${approved}`, {
     method: "POST",
   });
+
+export const markTimeRequestCollected = (requestId: number, amountCollected: number) =>
+  apiFetch("/auth/AddTimeRequest/amountcollected", {
+    method: "POST",
+    body: JSON.stringify({ requestId, amountCollected }),
+  });

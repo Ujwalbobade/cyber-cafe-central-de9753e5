@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { getTimeRequests } from "@/services/apis/api";
+import { getTimeRequests, markTimeRequestCollected } from "@/services/apis/api";
 import AdminWebSocketService from "@/services/Websockets";
 import { Clock, Check, X, Zap, User } from "lucide-react";
 
@@ -146,12 +146,30 @@ const TimeRequestsManagement: React.FC = () => {
                     <Button
                       size="sm"
                       className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => {
-                        toast({
-                          title: "Payment Collected",
-                          description: `Collected ₹${summary.totalAmount.toFixed(2)} from ${summary.username}`,
-                        });
-                        fetchRequests();
+                      onClick={async () => {
+                        try {
+                          // Get all unpaid requests for this user
+                          const userRequests = unpaidRequests.filter(r => r.userId === summary.userId);
+                          
+                          // Mark each request as collected
+                          await Promise.all(
+                            userRequests.map(req => 
+                              markTimeRequestCollected(req.id, req.amount || 0)
+                            )
+                          );
+                          
+                          toast({
+                            title: "Payment Collected",
+                            description: `Collected ₹${summary.totalAmount.toFixed(2)} from ${summary.username}`,
+                          });
+                          fetchRequests();
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to mark payment as collected",
+                            variant: "destructive",
+                          });
+                        }
                       }}
                     >
                       <Check className="w-4 h-4 mr-1" />
