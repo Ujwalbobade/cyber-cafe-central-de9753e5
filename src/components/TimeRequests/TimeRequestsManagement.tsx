@@ -20,6 +20,7 @@ interface TimeRequest {
   username?: string;
   stationId?: number;
   stationName?: string;
+  requestId?: number;
 }
 
 const TimeRequestsManagement: React.FC = () => {
@@ -190,7 +191,7 @@ const TimeRequestsManagement: React.FC = () => {
                           
                           // Prepare data in backend format
                           await markTimeRequestsCollectedByUser({
-                            timeRequestIds: userRequests.map(r => r.id),
+                            timeRequestIds: userRequests.map(r => r.requestId),
                             totalAmount: summary.totalAmount,
                             totalminutes: summary.totalMinutes,
                             userId: summary.userId
