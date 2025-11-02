@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { getTimeRequests, markTimeRequestsCollectedByUser } from "@/services/apis/api";
-import AdminWebSocketService from "@/services/Websockets";
+import { getTimeRequests, markTimeRequestsCollectedByUser, approveTimeRequest } from "@/services/apis/api";
 import { Clock, Check, X, Zap, User, Search, Filter } from "lucide-react";
 
 interface TimeRequest {
@@ -21,6 +20,7 @@ interface TimeRequest {
   stationId?: number;
   stationName?: string;
   requestId?: number;
+  amountStatus?: string;
 }
 
 const TimeRequestsManagement: React.FC = () => {
@@ -56,75 +56,92 @@ const TimeRequestsManagement: React.FC = () => {
 
   const handleApprove = async (id: number, approved: boolean) => {
     try {
-      const ws = AdminWebSocketService.getInstance();
-      ws.approveTimeRequest(id, approved);
+      await approveTimeRequest(id, approved);
+
       toast({
         title: approved ? "Request Approved" : "Request Rejected",
         description: approved
           ? "Time has been added to the session"
           : "Request has been rejected",
       });
-      fetchRequests();
+
+      fetchRequests(); // refresh UI
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to process request",
         variant: "destructive",
       });
+      console.error(error);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>;
-      case "APPROVED":
-        return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">Approved</Badge>;
-      case "REJECTED":
-        return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>;
-      case "PAID":
-        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Paid</Badge>;
-      default:
-        return null;
-    }
-  };
+  const getStatusBadge = (request: TimeRequest) => {
+  const { status, amountStatus } = request;
+
+  if (amountStatus === "PAID") {
+    return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Paid</Badge>;
+  }
+  if (amountStatus === "UNPAID") {
+    return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Unpaid</Badge>;
+  }
+
+  switch (status) {
+    case "PENDING":
+      return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>;
+    case "APPROVED":
+      return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">Approved</Badge>;
+    case "REJECTED":
+      return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>;
+    default:
+      return null;
+  }
+};
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
-  
-  // Apply filters to processed requests
+
+  // Include all except pending (processed + unpaid)
   const processedRequests = requests
-    .filter((r) => r.status !== "PENDING")
+    .filter(
+      (r) =>
+        r.status.toUpperCase() !== "PENDING" ||
+        (r.status.toUpperCase() === "APPROVED" && (!r.amount || r.amount === 0))
+    )
     .filter((r) => {
       // Username filter
       if (usernameFilter && !r.username?.toLowerCase().includes(usernameFilter.toLowerCase())) {
         return false;
       }
-      
+
       // Date range filter
       if (startDateFilter) {
         const requestDate = new Date(r.createdAt);
         const startDate = new Date(startDateFilter);
         if (requestDate < startDate) return false;
       }
-      
+
       if (endDateFilter) {
         const requestDate = new Date(r.createdAt);
         const endDate = new Date(endDateFilter);
         endDate.setHours(23, 59, 59, 999); // Include entire end day
         if (requestDate > endDate) return false;
       }
-      
+
       // Status filter
       if (statusFilter !== "ALL" && r.status !== statusFilter) {
         return false;
       }
-      
+
       return true;
     });
 
-  // Aggregate by user for easy payment collection (only show unpaid requests - exclude PAID status)
-  const unpaidRequests = requests.filter((r) => r.status !== "PAID" && r.status !== "REJECTED");
+  // Show only unpaid (not paid, rejected, or approved with amount)
+// Only include requests where amountStatus is UNPAID
+const unpaidRequests = requests.filter(
+  (r) => r.amountStatus?.toUpperCase() === "UNPAID"
+);
   const userSummary = unpaidRequests.reduce((acc, request) => {
+    if (request.status === "PAID") return acc;
     const key = request.userId;
     if (!acc[key]) {
       acc[key] = {
@@ -186,22 +203,23 @@ const TimeRequestsManagement: React.FC = () => {
                       className="bg-green-600 hover:bg-green-700 text-white"
                       onClick={async () => {
                         try {
-                          // Get all unpaid requests for this user
                           const userRequests = unpaidRequests.filter(r => r.userId === summary.userId);
-                          
-                          // Prepare data in backend format
+
                           await markTimeRequestsCollectedByUser({
                             timeRequestIds: userRequests.map(r => r.requestId),
                             totalAmount: summary.totalAmount,
                             totalminutes: summary.totalMinutes,
                             userId: summary.userId
                           });
-                          
+
                           toast({
                             title: "Payment Collected",
                             description: `Collected ₹${summary.totalAmount.toFixed(2)} from ${summary.username}`,
                           });
-                          fetchRequests();
+
+                          // ✅ Instantly update local state to remove from summary
+                          setRequests(prev => prev.filter(r => r.userId !== summary.userId));
+
                         } catch (error) {
                           toast({
                             title: "Error",
@@ -239,7 +257,7 @@ const TimeRequestsManagement: React.FC = () => {
                       <h4 className="font-bold text-lg text-foreground">
                         {request.stationName}
                       </h4>
-                      {getStatusBadge(request.status)}
+                      {getStatusBadge(request)}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4" />
@@ -267,15 +285,16 @@ const TimeRequestsManagement: React.FC = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => handleApprove(request.id, true)}
+                      onClick={() => handleApprove(request.requestId ?? request.id, true)}
                       className="bg-green-600 hover:bg-green-700 text-white"
                       size="sm"
                     >
                       <Check className="w-4 h-4 mr-1" />
                       Approve
                     </Button>
+
                     <Button
-                      onClick={() => handleApprove(request.id, false)}
+                      onClick={() => handleApprove(request.requestId ?? request.id, false)}
                       variant="destructive"
                       size="sm"
                     >
@@ -304,7 +323,7 @@ const TimeRequestsManagement: React.FC = () => {
           <h3 className="text-xl font-bold text-foreground">Request History</h3>
           <Badge variant="secondary">{processedRequests.length}</Badge>
         </div>
-        
+
         {/* Filter Controls */}
         <Card className="p-4 mb-4 bg-card/50 backdrop-blur">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -320,7 +339,7 @@ const TimeRequestsManagement: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Start Date</label>
               <Input
@@ -329,7 +348,7 @@ const TimeRequestsManagement: React.FC = () => {
                 onChange={(e) => setStartDateFilter(e.target.value)}
               />
             </div>
-            
+
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">End Date</label>
               <Input
@@ -338,7 +357,7 @@ const TimeRequestsManagement: React.FC = () => {
                 onChange={(e) => setEndDateFilter(e.target.value)}
               />
             </div>
-            
+
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Status</label>
               <select
@@ -353,7 +372,7 @@ const TimeRequestsManagement: React.FC = () => {
               </select>
             </div>
           </div>
-          
+
           {(usernameFilter || startDateFilter || endDateFilter || statusFilter !== "ALL") && (
             <Button
               variant="outline"
@@ -382,11 +401,11 @@ const TimeRequestsManagement: React.FC = () => {
                       <span className="font-semibold text-foreground">
                         {request.stationName}
                       </span>
-                      {getStatusBadge(request.status)}
+                      {getStatusBadge(request)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Requested By : {request.username} <br />
-                      Time : +{request.additionalMinutes} min • <br/>
+                      Time : +{request.additionalMinutes} min • <br />
                       Date : {new Date(request.createdAt).toLocaleString()} <br />
                       Amount : {request.amount && ` • ₹${request.amount.toFixed(2)}`}
                     </div>
