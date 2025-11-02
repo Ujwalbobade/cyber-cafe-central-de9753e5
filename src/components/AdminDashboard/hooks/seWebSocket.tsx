@@ -1,4 +1,4 @@
-import { useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 import AdminWebSocketService from "../../../services/Websockets";
 import { Station } from "../../Station/Types/Stations";
 
@@ -33,6 +33,27 @@ export const useWebSocket = (setStations: React.Dispatch<React.SetStateAction<St
                 ? { ...station, status: "OCCUPIED", ipAddress: data.ipAddress }
                 : station
             )
+          );
+          break;
+        case "TIME_ADDED":
+          setStations((prev) =>
+            prev.map((station) =>
+              station.id === data.stationId
+                ? {
+                  ...station,
+                  currentSession: station.currentSession
+                    ? {
+                      ...station.currentSession,
+                      timeRemaining:
+                        (station.currentSession.timeRemaining || 0) + data.addedMinutes,
+                    }
+                    : station.currentSession,
+                }
+                : station
+            )
+          );
+          console.log(
+            `TIME_ADDED: +${data.addedMinutes} minutes added to station ${data.stationId}`
           );
           break;
 
@@ -126,6 +147,17 @@ export const useWebSocket = (setStations: React.Dispatch<React.SetStateAction<St
         case "analytics_update":
         case "real_time_data":
           break;
+      /*  case "TIME_AUTO_APPROVED":
+          setSession((prev) =>
+            prev
+              ? {
+                ...prev,
+                timeRemaining: (prev.timeRemaining || 0) + data.addedMinutes,
+              }
+              : prev
+          );
+          console.log(`+${data.addedMinutes} minutes added to your session!`);
+          break;*/
 
         default:
           console.log("Unhandled WS message:", msg);
