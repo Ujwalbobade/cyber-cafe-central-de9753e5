@@ -30,6 +30,17 @@ interface AnalyticsData {
   gamePopularity: Array<{ game: string; sessions: number; revenue: number }>;
   maintenanceAlerts: Array<{ station: string; issue: string; priority: string }>;
   userBehavior: Array<{ metric: string; value: number; change: number }>;
+  timeRequests?: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    paid: number;
+    totalMinutes: number;
+    totalAmount: number;
+    chart: Array<{ date: string; requests: number; amount: number }>;
+    statusBreakdown: Array<{ status: string; count: number }>;
+  };
 }
 
 const AnalyticsHub: React.FC = () => {
@@ -289,11 +300,12 @@ if (!analyticsData) {
 
         {/* Tabs remain visible */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-card">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 bg-card">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="stations">Stations</TabsTrigger>
             <TabsTrigger value="games">Games</TabsTrigger>
+            <TabsTrigger value="time-requests">Time Requests</TabsTrigger>
             <TabsTrigger value="insights">Insights</TabsTrigger>
           </TabsList>
 
@@ -442,11 +454,12 @@ if (!analyticsData) {
 
         {/* Analytics Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-card">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 bg-card">
             <TabsTrigger value="overview" className="font-gaming">Overview</TabsTrigger>
             <TabsTrigger value="revenue" className="font-gaming">Revenue</TabsTrigger>
             <TabsTrigger value="stations" className="font-gaming">Stations</TabsTrigger>
             <TabsTrigger value="games" className="font-gaming">Games</TabsTrigger>
+            <TabsTrigger value="time-requests" className="font-gaming">Time Requests</TabsTrigger>
             <TabsTrigger value="insights" className="font-gaming">Insights</TabsTrigger>
           </TabsList>
 
