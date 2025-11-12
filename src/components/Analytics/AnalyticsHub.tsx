@@ -348,6 +348,15 @@ if (!analyticsData) {
             </div>
           </TabsContent>
 
+          <TabsContent value="time-requests">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Clock className="w-10 h-10 text-muted mb-3" />
+              <p className="text-muted-foreground text-lg">
+                No time request data available.
+              </p>
+            </div>
+          </TabsContent>
+
           <TabsContent value="insights">
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Target className="w-10 h-10 text-muted mb-3" />
