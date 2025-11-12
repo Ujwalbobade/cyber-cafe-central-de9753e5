@@ -30,6 +30,17 @@ interface AnalyticsData {
   gamePopularity: Array<{ game: string; sessions: number; revenue: number }>;
   maintenanceAlerts: Array<{ station: string; issue: string; priority: string }>;
   userBehavior: Array<{ metric: string; value: number; change: number }>;
+  timeRequests?: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    paid: number;
+    totalMinutes: number;
+    totalAmount: number;
+    chart: Array<{ date: string; requests: number; amount: number }>;
+    statusBreakdown: Array<{ status: string; count: number }>;
+  };
 }
 
 const AnalyticsHub: React.FC = () => {
@@ -289,11 +300,12 @@ if (!analyticsData) {
 
         {/* Tabs remain visible */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-card">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 bg-card">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="stations">Stations</TabsTrigger>
             <TabsTrigger value="games">Games</TabsTrigger>
+            <TabsTrigger value="time-requests">Time Requests</TabsTrigger>
             <TabsTrigger value="insights">Insights</TabsTrigger>
           </TabsList>
 
@@ -332,6 +344,15 @@ if (!analyticsData) {
               <Zap className="w-10 h-10 text-muted mb-3" />
               <p className="text-muted-foreground text-lg">
                 No game popularity data available.
+              </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="time-requests">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Clock className="w-10 h-10 text-muted mb-3" />
+              <p className="text-muted-foreground text-lg">
+                No time request data available.
               </p>
             </div>
           </TabsContent>
@@ -442,11 +463,12 @@ if (!analyticsData) {
 
         {/* Analytics Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-card">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 bg-card">
             <TabsTrigger value="overview" className="font-gaming">Overview</TabsTrigger>
             <TabsTrigger value="revenue" className="font-gaming">Revenue</TabsTrigger>
             <TabsTrigger value="stations" className="font-gaming">Stations</TabsTrigger>
             <TabsTrigger value="games" className="font-gaming">Games</TabsTrigger>
+            <TabsTrigger value="time-requests" className="font-gaming">Time Requests</TabsTrigger>
             <TabsTrigger value="insights" className="font-gaming">Insights</TabsTrigger>
           </TabsList>
 
@@ -637,6 +659,140 @@ if (!analyticsData) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="time-requests" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <StatsCard
+                title="Total Requests"
+                value={analyticsData.timeRequests?.total.toLocaleString() || '0'}
+                icon={<Clock className="w-6 h-6" />}
+                gradient="bg-gradient-primary"
+              />
+              <StatsCard
+                title="Total Minutes"
+                value={`${analyticsData.timeRequests?.totalMinutes.toLocaleString() || '0'} min`}
+                icon={<Activity className="w-6 h-6" />}
+                gradient="bg-gradient-secondary"
+              />
+              <StatsCard
+                title="Total Amount"
+                value={`$${analyticsData.timeRequests?.totalAmount.toLocaleString() || '0'}`}
+                icon={<DollarSign className="w-6 h-6" />}
+                gradient="bg-gradient-gaming"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Time Requests Trend */}
+              <Card className="card-gaming">
+                <CardHeader>
+                  <CardTitle className="font-gaming text-primary">Time Requests Trend</CardTitle>
+                  <CardDescription>Requests and revenue over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={analyticsData.timeRequests?.chart || []}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="requests" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        name="Requests"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="amount" 
+                        stroke="hsl(var(--accent))" 
+                        strokeWidth={2}
+                        name="Amount ($)"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Status Breakdown */}
+              <Card className="card-gaming">
+                <CardHeader>
+                  <CardTitle className="font-gaming text-accent">Request Status Breakdown</CardTitle>
+                  <CardDescription>Distribution by status</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={analyticsData.timeRequests?.statusBreakdown || []}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ status, count }) => `${status}: ${count}`}
+                        outerRadius={100}
+                        fill="hsl(var(--primary))"
+                        dataKey="count"
+                      >
+                        {(analyticsData.timeRequests?.statusBreakdown || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Request Summary Cards */}
+              <Card className="card-gaming lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="font-gaming text-primary">Request Summary</CardTitle>
+                  <CardDescription>Detailed breakdown of time requests</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Pending</p>
+                      <p className="text-3xl font-bold text-warning">
+                        {analyticsData.timeRequests?.pending || 0}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-success/10 border border-success/20 rounded-lg text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Approved</p>
+                      <p className="text-3xl font-bold text-success">
+                        {analyticsData.timeRequests?.approved || 0}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-error/10 border border-error/20 rounded-lg text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Rejected</p>
+                      <p className="text-3xl font-bold text-error">
+                        {analyticsData.timeRequests?.rejected || 0}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Paid</p>
+                      <p className="text-3xl font-bold text-primary">
+                        {analyticsData.timeRequests?.paid || 0}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
